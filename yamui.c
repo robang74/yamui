@@ -180,7 +180,7 @@ static bool display_blanked  = false;
 static void
 display_acquire(void)
 {
-	if (!display_acquired && !display_released) {
+	if (!display_acquired) {
 		display_acquired = true;
 		if (gr_init(true) == -1) {
 			log_err("gr_init() failed");
@@ -725,27 +725,27 @@ cleanup:
  * ========================================================================= */
 
 /** Well known dbus name of compositor service */
-#define COMPOSITOR_SERVICE                     "org.nemomobile.compositor"
-#define COMPOSITOR_PATH                        "/"
-#define COMPOSITOR_IFACE                       "org.nemomobile.compositor"
+# define COMPOSITOR_SERVICE                     "org.nemomobile.compositor"
+# define COMPOSITOR_PATH                        "/"
+# define COMPOSITOR_IFACE                       "org.nemomobile.compositor"
 
 /** Enabling/disabling display updates via compositor service */
-#define COMPOSITOR_SET_UPDATES_ENABLED         "setUpdatesEnabled"
+# define COMPOSITOR_SET_UPDATES_ENABLED         "setUpdatesEnabled"
 
 /** Query owner of topmost ui window */
-#define COMPOSITOR_GET_TOPMOST_WINDOW_PID      "privateTopmostWindowProcessId"
+# define COMPOSITOR_GET_TOPMOST_WINDOW_PID	"privateTopmostWindowProcessId"
 
 /** Change notification for owner of topmost ui window */
-#define COMPOSITOR_TOPMOST_WINDOW_PID_CHANGED  "privateTopmostWindowProcessIdChanged"
+# define COMPOSITOR_TOPMOST_WINDOW_PID_CHANGED  "privateTopmostWindowProcessIdChanged"
 
 /** Query requirements of this compositor process */
-#define COMPOSITOR_GET_SETUP_ACTIONS           "privateGetSetupActions"
+# define COMPOSITOR_GET_SETUP_ACTIONS           "privateGetSetupActions"
 
 /** Setup actions supported by mce */
-#define COMPOSITOR_ACTION_NONE                 0
-#define COMPOSITOR_ACTION_STOP_HWC             (1<<0)
-#define COMPOSITOR_ACTION_START_HWC            (1<<1)
-#define COMPOSITOR_ACTION_RESTART_HWC          (1<<2)
+# define COMPOSITOR_ACTION_NONE                 0
+# define COMPOSITOR_ACTION_STOP_HWC             (1<<0)
+# define COMPOSITOR_ACTION_START_HWC            (1<<1)
+# define COMPOSITOR_ACTION_RESTART_HWC          (1<<2)
 
 /** Introspect XML - needed for setting up glib based dbus service */
 static const char introspect_xml[] = ""
@@ -1157,10 +1157,10 @@ cleanup:
 static void
 app_flush_images(void)
 {
-	while (app_image_count > 0) {
-		gchar *filepath = app_images[--app_image_count];
-		g_free(filepath);
-	}
+    while (app_image_count > 0) {
+        gchar *filepath = app_images[--app_image_count];
+        g_free(filepath);
+    }
 }
 
 /** Hook for redrawing ui content after display unblank
@@ -1427,11 +1427,12 @@ static struct option opt_long[] = {
 	{"terminate",    no_argument,       0, 'x'},
 	{"systemd",      no_argument,       0, 'n'},
 	{"skip-cleanup", no_argument,       0, 'c'},
+	{"debug",        no_argument,       0, 'd'},
 	{0, 0, 0, 0},
 };
 
 /** Short form command line options */
-static const char opt_short[] = "a:i:p:s:t:hxnc";
+static const char opt_short[] = "a:i:p:s:t:hxncd";
 
 /* ========================================================================= *
  * MAIN
@@ -1441,6 +1442,7 @@ int
 main(int argc, char *argv[])
 {
 	bool do_cleanup = true;
+	bool debugging = false;
 
 	setlinebuf(stdout);
 	setlinebuf(stderr);
@@ -1487,6 +1489,9 @@ main(int argc, char *argv[])
 		case 'c':
 			log_debug("skip display cleanup");
 			do_cleanup = false;
+			break;
+		case 'd':
+			debugging = true;
 			break;
 		case 'h':
 			app_print_long_help();
@@ -1555,6 +1560,13 @@ cleanup:
 		app_flush_images();
 		systembus_quit_socket_monitor();
 		compositor_quit();
+	}
+	if (debugging) {
+	    display_release();
+	    app_flush_images();
+	    compositor_cancel_connect();
+	    systembus_quit_socket_monitor();
+	    compositor_quit();
 	}
 
 	log_debug("exit");
