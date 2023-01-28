@@ -94,31 +94,31 @@ text_blend(unsigned char *src_p, int src_row_bytes, unsigned char *dst_p,
 		for (i = 0; i < width; i++) {
 			unsigned char a = *sx++;
 
-			if (gr_current_a < 255) {
+			if (gr_current_a < 255)
 				a = ((int)a * gr_current_a) / 255;
-				if (a == 255) {
-					*px++ = gr_current_r;
-					*px++ = gr_current_g;
-					*px++ = gr_current_b;
-					px++;
-				} else if (a > 0) {
-					*px = (*px * (255 - a) +
-					       gr_current_r * a) / 255;
-					px++;
-					*px = (*px * (255 - a) +
-					       gr_current_g * a) / 255;
-					px++;
-					*px = (*px * (255 - a) +
-					       gr_current_b * a) / 255;
-					px++;
-					px++;
-				} else
-					px += 4;
-			}
 
-			src_p += src_row_bytes;
-			dst_p += dst_row_bytes;
-		}
+            if (a == 255) {
+                *px++ = gr_current_r;
+                *px++ = gr_current_g;
+                *px++ = gr_current_b;
+                px++;
+            } else if (a > 0) {
+                *px = (*px * (255 - a) +
+                       gr_current_r * a) / 255;
+                px++;
+                *px = (*px * (255 - a) +
+                       gr_current_g * a) / 255;
+                px++;
+                *px = (*px * (255 - a) +
+                       gr_current_b * a) / 255;
+                px++;
+                px++;
+            } else
+                px += 4;
+        }
+
+        src_p += src_row_bytes;
+        dst_p += dst_row_bytes;
 	}
 }
 
