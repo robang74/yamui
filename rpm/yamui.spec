@@ -1,14 +1,14 @@
 Name:       yamui
 Summary:    Minimal UI tool for displaying simple graphical indicators
-Version:    1.0.6
+Version:    1.0.6.1
 Release:    1
-Url:        https://github.com/sailfishos/yamui.git
+Url:        https://github.com/robang74/yamui.git
 Group:      System/Boot
 License:    ASL 2.0
 Source0:    %{name}-%{version}.tar.gz
 
-BuildRequires:  libpng-devel
-BuildRequires:  libdrm-devel
+BuildRequires:  pkgconfig(libpng)
+BuildRequires:  pkgconfig(libdrm)
 
 %description
 %{summary}.
@@ -26,5 +26,5 @@ make
 %files
 %defattr(-,root,root,-)
 %{_bindir}/%{name}
-%{_bindir}/yamui-powerkey
-%{_bindir}/yamui-screensaverd
+%{_bindir}/%{name}-powerkey
+%{_bindir}/%{name}-screensaverd
