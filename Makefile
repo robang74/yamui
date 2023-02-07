@@ -28,6 +28,7 @@ TARGETS_BIN += yamui-powerkey
 DESTDIR ?= test-install-root # rpm-build overrides this
 
 all:: $(TARGETS_BIN)
+	strip $(TARGETS_BIN)
 
 install:: all
 	install -m 755 -t $(DESTDIR)/usr/bin -D $(TARGETS_BIN)
