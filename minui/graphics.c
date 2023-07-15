@@ -83,30 +83,36 @@ void gr_font_size(int *x, int *y)
 
 /* ------------------------------------------------------------------------ */
 
+//RAF: integer divisions requires to be rounded to the nearest integer value
+//     but adding 127 makes the unsigned char overflow therefore (unsigned)
+
+#define alpha_apply(px, bg, a) (unsigned char)( ( (unsigned)127 + \
+	((unsigned)px * (255 - a)) + ((unsigned)bg * a) ) / 255 )
+
 static void
 text_blend(unsigned char *src_p, int src_row_bytes, unsigned char *dst_p,
 	   int dst_row_bytes, int width, int height, int factor)
 {
 	int i, j, l, k;
 
-/* RAF: in the most generic case the RGBA is not the only format possible. Hence
- *      the pixel_bytes should be passed as function parameter and verified.
+/* RAF: in the most generic case the RGBA is not the only format possible.
+ *      The pixel_bytes should be passed as function parameter and verified.
  *      When it is less than 3, this function cannot deal with it returns.
  *      When it is 3, then the alpha layer can be ignored and the RGB set.
  */
 
-	for (j = 0; j < height; j++) {
-		unsigned char *sx = src_p, *px = dst_p;
-		
-		for (l = 0; l < factor; l++) {
+    for (j = 0; j < height; j++) {
+        unsigned char *sx = src_p, *px = dst_p;
 
-			for (i = 0; i < width; i++) {
-				unsigned char a = *sx++;
+        for (l = 0; l < factor; l++) {
 
-				for (k = 0; k < factor; k++) {
+            for (i = 0; i < width; i++) {
+                unsigned char a = *sx++;
 
-		            if (gr_current_a < 255)
-		                a = (127 + (int)a * gr_current_a) / 255;
+                for (k = 0; k < factor; k++) {
+
+                    if (gr_current_a < 255)
+                        a = alpha_apply(0, gr_current_a, a);
 
                     if (a == 255) {
                         //RAF: transparency full
@@ -116,26 +122,24 @@ text_blend(unsigned char *src_p, int src_row_bytes, unsigned char *dst_p,
                         px++;
                     } else if (a > 0) {
                         //RAF: transparency dims
-                        *px = (127 + (*px * (255 - a)) +
-                               (gr_current_r * a)) / 255;
+                        *px = alpha_apply(*px, gr_current_r, a);
                         px++;
-                        *px = (127 + (*px * (255 - a)) +
-                               (gr_current_g * a)) / 255;
+                        *px = alpha_apply(*px, gr_current_g, a);
                         px++;
-                        *px = (127 + (*px * (255 - a)) +
-                               (gr_current_b * a)) / 255;
+                        *px = alpha_apply(*px, gr_current_b, a);
                         px++;
                         px++;
-                    } else 
+                    } else {
                         //RAF: transparency none
                         px += 4;
+                    }
                 }
 
                 src_p += src_row_bytes;
                 dst_p += dst_row_bytes;
-			}
-		}
-	}
+            }
+        }
+    }
 }
 
 /* ------------------------------------------------------------------------ */
