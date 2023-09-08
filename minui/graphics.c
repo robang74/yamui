@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007 The Android Open Source Project
  * Copyright (c) 2014 - 2023 Jolla Ltd.
+ * Copyright (c) 2023, Roberto A. Foglietta <roberto.foglietta@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,48 +85,67 @@ void gr_font_size(int *x, int *y)
 
 static void
 text_blend(unsigned char *src_p, int src_row_bytes, unsigned char *dst_p,
-	   int dst_row_bytes, int width, int height)
+	   int dst_row_bytes, int width, int height, int factor)
 {
-	int i, j;
+	int i, j, l, k;
+
+/* RAF: in the most generic case the RGBA is not the only format possible. Hence
+ *      the pixel_bytes should be passed as function parameter and verified.
+ *      When it is less than 3, this function cannot deal with it returns.
+ *      When it is 3, then the alpha layer can be ignored and the RGB set.
+ */
 
 	for (j = 0; j < height; j++) {
 		unsigned char *sx = src_p, *px = dst_p;
+		
+		for (l = 0; l < factor; l++) {
 
-		for (i = 0; i < width; i++) {
-			unsigned char a = *sx++;
+			for (i = 0; i < width; i++) {
+				unsigned char a = *sx++;
 
-			if (gr_current_a < 255)
-				a = ((int)a * gr_current_a) / 255;
+				for (k = 0; k < factor; k++) {
 
-            if (a == 255) {
-                *px++ = gr_current_r;
-                *px++ = gr_current_g;
-                *px++ = gr_current_b;
-                px++;
-            } else if (a > 0) {
-                *px = (*px * (255 - a) +
-                       gr_current_r * a) / 255;
-                px++;
-                *px = (*px * (255 - a) +
-                       gr_current_g * a) / 255;
-                px++;
-                *px = (*px * (255 - a) +
-                       gr_current_b * a) / 255;
-                px++;
-                px++;
-            } else
-                px += 4;
-        }
+		            if (gr_current_a < 255)
+		                a = (127 + (int)a * gr_current_a) / 255;
 
-        src_p += src_row_bytes;
-        dst_p += dst_row_bytes;
+                    if (a == 255) {
+                        //RAF: transparency full
+                        *px++ = gr_current_r;
+                        *px++ = gr_current_g;
+                        *px++ = gr_current_b;
+                        px++;
+                    } else if (a > 0) {
+                        //RAF: transparency dims
+                        *px = (127 + (*px * (255 - a)) +
+                               (gr_current_r * a)) / 255;
+                        px++;
+                        *px = (127 + (*px * (255 - a)) +
+                               (gr_current_g * a)) / 255;
+                        px++;
+                        *px = (127 + (*px * (255 - a)) +
+                               (gr_current_b * a)) / 255;
+                        px++;
+                        px++;
+                    } else 
+                        //RAF: transparency none
+                        px += 4;
+                }
+
+                src_p += src_row_bytes;
+                dst_p += dst_row_bytes;
+			}
+		}
 	}
 }
 
 /* ------------------------------------------------------------------------ */
 
+// RAF: (x,y) is the coordinates at which it starts to render the text
+//      the following macro can be useful somewhere else (TODO)
+#define gr_draw_data_ptr(x,y) (unsigned char *)(gr_draw->data + (y * gr_draw->row_bytes) + (x * gr_draw->pixel_bytes))
+
 void
-gr_text(int x, int y, const char *s, int bold)
+gr_text(int x, int y, const char *s, int bold, int factor)
 {
 	GRFont *font = gr_font;
 	unsigned off;
@@ -144,25 +164,18 @@ gr_text(int x, int y, const char *s, int bold)
 	while ((off = *s++)) {
 		off -= 32;
 		if (outside(x, y) ||
-		    outside( x +font->cwidth - 1, y + font->cheight - 1))
+		    outside(x + (factor * font->cwidth)  - 1,
+		            y + (factor * font->cheight) - 1))
 			break;
 
 		if (off < 96) {
-			unsigned char *src_p, *dst_p;
+			unsigned char *src_p = font->texture->data + (off * font->cwidth) +
+				(bold ? font->cheight * font->texture->row_bytes : 0);
 
-			src_p = font->texture->data + (off * font->cwidth) +
-				(bold ? font->cheight *
-				 font->texture->row_bytes : 0);
-			dst_p = gr_draw->data + y * gr_draw->row_bytes +
-						x * gr_draw->pixel_bytes;
-
-			text_blend(src_p, font->texture->row_bytes, dst_p,
-				   gr_draw->row_bytes, font->cwidth,
-				   font->cheight);
-
+			text_blend(src_p, font->texture->row_bytes, gr_draw_data_ptr(x, y),
+				   gr_draw->row_bytes, font->cwidth, font->cheight, factor);
 		}
-
-		x += font->cwidth;
+		x += font->cwidth * factor;
 	}
 }
 
@@ -193,7 +206,7 @@ gr_texticon(int x, int y, GRSurface *icon)
 				x * gr_draw->pixel_bytes;
 
 	text_blend(src_p, icon->row_bytes, dst_p, gr_draw->row_bytes,
-		   icon->width, icon->height);
+		   icon->width, icon->height, 1);
 }
 
 /* ------------------------------------------------------------------------ */

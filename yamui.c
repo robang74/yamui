@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2014 - 2023 Jolla Ltd.
+ * Copyright (c) 2023, Roberto A. Foglietta <roberto.foglietta@gmail.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
 #define _DEFAULT_SOURCE
 
 #include <stdio.h>
@@ -24,6 +42,8 @@ static struct option options[] = {
 	{"help",        no_argument,       0, 'h'},
 	{0, 0, 0, 0},
 };
+
+static unsigned long long int app_font_multipl = 0;
 
 /* ------------------------------------------------------------------------ */
 
@@ -97,7 +117,7 @@ add_text(char *text)
 
 	for (i = 0; i < 2; i++) {
 		gr_color(255, 255, 255, 255);
-		gr_text(20,20, text, 1);
+		gr_text(20,20, text, 1, app_font_multipl);
 		gr_flip();
 	}
 }
@@ -111,7 +131,6 @@ main(int argc, char *argv[])
 	unsigned long int animate_ms = 0;
 	unsigned long long int stop_ms = 0;
 	unsigned long long int progress_ms = 0;
-	unsigned long long int app_font_multipl = 0;
 	char * text = NULL;
 	char * images[IMAGES_MAX];
 	char * images_dir = "/res/images";

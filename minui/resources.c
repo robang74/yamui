@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007 The Android Open Source Project
  * Copyright (c) 2014 - 2023 Jolla Ltd.
+ * Copyright (c) 2023, Roberto A. Foglietta <roberto.foglietta@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -184,8 +185,8 @@ init_display_surface(png_uint_32 width, png_uint_32 height)
 
 	surface->width = width;
 	surface->height = height;
-	surface->row_bytes = width * 4;
-	surface->pixel_bytes = 4;
+	surface->pixel_bytes = 4; //RAF: RGB + Alpha
+	surface->row_bytes = width * surface->pixel_bytes;
 
 	return surface;
 }
