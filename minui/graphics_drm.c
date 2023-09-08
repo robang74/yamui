@@ -42,11 +42,13 @@ struct drm_surface {
     uint32_t fb_id;
     uint32_t handle;
 };
+
 static struct drm_surface *drm_surfaces[2];
 static int current_buffer;
 static drmModeCrtc *main_monitor_crtc;
 static drmModeConnector *main_monitor_connector;
 static int drm_fd = -1;
+
 static void drm_disable_crtc(int drm_fd, drmModeCrtc *crtc) {
     if (crtc) {
         drmModeSetCrtc(drm_fd, crtc->crtc_id,
@@ -57,6 +59,7 @@ static void drm_disable_crtc(int drm_fd, drmModeCrtc *crtc) {
                        NULL);
     }
 }
+
 static void drm_enable_crtc(int drm_fd, drmModeCrtc *crtc,
                             struct drm_surface *surface) {
     int32_t ret;
@@ -69,6 +72,7 @@ static void drm_enable_crtc(int drm_fd, drmModeCrtc *crtc,
     if (ret)
         printf("drmModeSetCrtc failed ret=%d\n", ret);
 }
+
 static void drm_blank(minui_backend* backend __unused, bool blank) {
     (void)backend;
 
@@ -78,6 +82,7 @@ static void drm_blank(minui_backend* backend __unused, bool blank) {
         drm_enable_crtc(drm_fd, main_monitor_crtc,
                         drm_surfaces[current_buffer]);
 }
+
 static void drm_destroy_surface(struct drm_surface *surface) {
     struct drm_gem_close gem_close;
     int ret;
@@ -100,6 +105,7 @@ static void drm_destroy_surface(struct drm_surface *surface) {
     }
     free(surface);
 }
+
 static int drm_format_to_bpp(uint32_t format) {
     switch(format) {
         case DRM_FORMAT_ABGR8888:
@@ -116,6 +122,7 @@ static int drm_format_to_bpp(uint32_t format) {
             return 32;
     }
 }
+
 static struct drm_surface *drm_create_surface(int width, int height) {
     struct drm_surface *surface;
     struct drm_mode_create_dumb create_dumb;
@@ -188,6 +195,7 @@ static struct drm_surface *drm_create_surface(int width, int height) {
     }
     return surface;
 }
+
 static drmModeCrtc *find_crtc_for_connector(int fd,
                             drmModeRes *resources,
                             drmModeConnector *connector) {
@@ -227,6 +235,7 @@ static drmModeCrtc *find_crtc_for_connector(int fd,
     }
     return NULL;
 }
+
 static drmModeConnector *find_used_connector_by_type(int fd,
                                  drmModeRes *resources,
                                  unsigned type) {
@@ -244,6 +253,7 @@ static drmModeConnector *find_used_connector_by_type(int fd,
     }
     return NULL;
 }
+
 static drmModeConnector *find_first_connected_connector(int fd,
                              drmModeRes *resources) {
     int i;
@@ -259,6 +269,7 @@ static drmModeConnector *find_first_connected_connector(int fd,
     }
     return NULL;
 }
+
 static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources,
         uint32_t *mode_index) {
     unsigned i = 0;
@@ -293,6 +304,7 @@ static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources,
     }
     return main_monitor_connector;
 }
+
 static void disable_non_main_crtcs(int fd,
                     drmModeRes *resources,
                     drmModeCrtc* main_crtc) {
@@ -307,6 +319,7 @@ static void disable_non_main_crtcs(int fd,
         drmModeFreeCrtc(crtc);
     }
 }
+
 static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
     (void)backend;
     (void)blank;
@@ -382,8 +395,10 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
     }
     current_buffer = 0;
     drm_enable_crtc(drm_fd, main_monitor_crtc, drm_surfaces[1]);
+    printf("drm init -> width: %d, height: %d\n", width, height);
     return &(drm_surfaces[0]->base);
 }
+
 static GRSurface* drm_flip(minui_backend* backend __unused) {
     (void)backend;
 
@@ -397,6 +412,7 @@ static GRSurface* drm_flip(minui_backend* backend __unused) {
     current_buffer = 1 - current_buffer;
     return &(drm_surfaces[current_buffer]->base);
 }
+
 static void drm_exit(minui_backend* backend __unused) {
     (void)backend;
 
@@ -408,6 +424,7 @@ static void drm_exit(minui_backend* backend __unused) {
     close(drm_fd);
     drm_fd = -1;
 }
+
 static minui_backend drm_backend = {
     .init = drm_init,
     .flip = drm_flip,
@@ -416,6 +433,7 @@ static minui_backend drm_backend = {
     .save = NULL,
     .restore = NULL,
 };
+
 minui_backend* open_drm() {
     return &drm_backend;
 }

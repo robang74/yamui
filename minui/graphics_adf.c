@@ -80,6 +80,9 @@ adf_surface_init(struct adf_pdata *pdata, struct drm_mode_modeinfo *mode,
 		return -errno;
 	}
 
+    printf("adf init -> width: %d, height: %d\n",
+        surf->base.width surf->base.height);
+
 	return 0;
 }
 

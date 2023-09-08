@@ -86,14 +86,15 @@ void gr_font_size(int *x, int *y)
 //RAF: integer divisions requires to be rounded to the nearest integer value
 //     but adding 127 makes the unsigned char overflow therefore (unsigned)
 
-#define alpha_apply(px, bg, a) (unsigned char)( ( (unsigned)127 + \
-	((unsigned)px * (255 - a)) + ((unsigned)bg * a) ) / 255 )
+#define alpha_apply(sx, bg, a) (unsigned char)( ( (unsigned)127 + \
+	((unsigned)sx * (255 - a)) + ((unsigned)bg * a) ) / 255 )
 
 static void
-text_blend(unsigned char *src_p, int src_row_bytes, unsigned char *dst_p,
-	   int dst_row_bytes, int width, int height, int factor)
+text_blend(unsigned char *sx, int src_row_bytes, unsigned char *px,
+	                int dst_row_bytes, int width, int height, int factor)
 {
-	int i, j, l, k;
+	int i, j, l, k, z;
+	unsigned char a;
 
 /* RAF: in the most generic case the RGBA is not the only format possible.
  *      The pixel_bytes should be passed as function parameter and verified.
@@ -101,44 +102,46 @@ text_blend(unsigned char *src_p, int src_row_bytes, unsigned char *dst_p,
  *      When it is 3, then the alpha layer can be ignored and the RGB set.
  */
 
-    for (j = 0; j < height; j++) {
-        unsigned char *sx = src_p, *px = dst_p;
+    for (j = 0; j < height; j++)
+    {
+        for (l = 0; l < factor; l++)
+        {
+            for (i = 0; i < width; i++)
+            {
+                if (gr_current_a < 255)
+                    a = alpha_apply(0, gr_current_a, sx[i]);
+                else
+                    a = sx[i];
 
-        for (l = 0; l < factor; l++) {
-
-            for (i = 0; i < width; i++) {
-                unsigned char a = *sx++;
-
-                for (k = 0; k < factor; k++) {
-
-                    if (gr_current_a < 255)
-                        a = alpha_apply(0, gr_current_a, a);
-
-                    if (a == 255) {
-                        //RAF: transparency full
-                        *px++ = gr_current_r;
-                        *px++ = gr_current_g;
-                        *px++ = gr_current_b;
-                        px++;
-                    } else if (a > 0) {
-                        //RAF: transparency dims
-                        *px = alpha_apply(*px, gr_current_r, a);
-                        px++;
-                        *px = alpha_apply(*px, gr_current_g, a);
-                        px++;
-                        *px = alpha_apply(*px, gr_current_b, a);
-                        px++;
-                        px++;
-                    } else {
+                for (k = 0; k < factor; k++)
+                {
+                    z = (k<<2) + ((i*factor)<<2);
+#if 0
+                    printf("a: %u, j:%d/%d, l:%d, i:%d/%d, k:%d, r:%d/%d, f: %d\n",
+                        a, j, height, l, i, width, k, src_row_bytes, dst_row_bytes,
+                        factor); fflush(stdout);
+#endif
+                    if (a == 255)
+                    {
                         //RAF: transparency none
-                        px += 4;
+                        px[z+0] = gr_current_r;
+                        px[z+1] = gr_current_g;
+                        px[z+2] = gr_current_b;
+                        //px[3] = a;
+                    } else
+                    if (a > 0)
+                    {
+                        //RAF: transparency dims
+                        px[z+0] = alpha_apply(px[z+0], gr_current_r, a);
+                        px[z+1] = alpha_apply(px[z+1], gr_current_g, a);
+                        px[z+2] = alpha_apply(px[z+2], gr_current_b, a);
+                        //px[3] = a;
                     }
                 }
-
-                src_p += src_row_bytes;
-                dst_p += dst_row_bytes;
             }
+            px+=dst_row_bytes;
         }
+        sx+=src_row_bytes;
     }
 }
 
@@ -146,7 +149,8 @@ text_blend(unsigned char *src_p, int src_row_bytes, unsigned char *dst_p,
 
 // RAF: (x,y) is the coordinates at which it starts to render the text
 //      the following macro can be useful somewhere else (TODO)
-#define gr_draw_data_ptr(x,y) (unsigned char *)(gr_draw->data + (y * gr_draw->row_bytes) + (x * gr_draw->pixel_bytes))
+#define gr_draw_data_ptr(x,y) (unsigned char *)(gr_draw->data + \
+        (x * gr_draw->pixel_bytes)) + (y * gr_draw->row_bytes)
 
 void
 gr_text(int x, int y, const char *s, int bold, int factor)
@@ -164,6 +168,9 @@ gr_text(int x, int y, const char *s, int bold, int factor)
 
 	x += overscan_offset_x;
 	y += overscan_offset_y;
+	
+	printf("gr_draw -> width: %d, height: %d\n",
+	    gr_draw->width, gr_draw->height);
 
 	while ((off = *s++)) {
 		off -= 32;
