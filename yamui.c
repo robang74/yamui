@@ -20,6 +20,7 @@ static struct option options[] = {
 	{"progressbar", required_argument, 0, 'p'},
 	{"stopafter",   required_argument, 0, 's'},
 	{"text",        required_argument, 0, 't'},
+	{"fontmultipl", required_argument, 0, 'm'},
 	{"help",        no_argument,       0, 'h'},
 	{0, 0, 0, 0},
 };
@@ -53,7 +54,7 @@ wait_signalfd(int sigfd, unsigned long long int msecs)
 static void
 short_help(void)
 {
-	printf("  os-update-minui [OPTIONS] [IMAGE(s)]\n");
+	printf("USAGE: yamui [OPTIONS] [IMAGE(s)]\n");
 }
 
 /* ------------------------------------------------------------------------ */
@@ -78,6 +79,8 @@ print_help(void)
 	printf("         Stop showing the IMAGE(s) after TIME milliseconds\n");
 	printf("  --text=STRING, -t STRING\n");
 	printf("         Show STRING on the screen\n");
+	printf("  --fontmultipl=FACTOR, -m FACTOR\n");
+	printf("         Increase the font size by a factor between 1 and 16\n");
 	printf("  --help, -h\n");
 	printf("         Print this help\n");
 }
@@ -108,6 +111,7 @@ main(int argc, char *argv[])
 	unsigned long int animate_ms = 0;
 	unsigned long long int stop_ms = 0;
 	unsigned long long int progress_ms = 0;
+	unsigned long long int app_font_multipl = 0;
 	char * text = NULL;
 	char * images[IMAGES_MAX];
 	char * images_dir = "/res/images";
@@ -120,7 +124,7 @@ main(int argc, char *argv[])
 	setlinebuf(stdout);
 
 	while (1) {
-		c = getopt_long(argc, argv, "a:i:p:s:t:h", options,
+		c = getopt_long(argc, argv, "a:i:p:s:t:m:h", options,
 				&option_index);
 		if (c == -1)
 			break;
@@ -144,8 +148,20 @@ main(int argc, char *argv[])
 			break;
 		case 't':
 			printf("got text \"%s\" to display\n", optarg);
+            if (!app_font_multipl)
+                app_font_multipl = 1;
+            else
+            if (app_font_multipl > 16) {
+                printf("The font multiplier is out of range");
+                print_help();
+                exit(EXIT_FAILURE);
+            }
 			text = optarg;
 			break;
+        case 'm':
+            printf("got font %s multipier\n", optarg);
+            app_font_multipl = strtoull(optarg, NULL, 10);
+            break;
 		case 'h':
 			print_help();
 			goto out;
@@ -249,7 +265,10 @@ main(int argc, char *argv[])
 	if (text) {
 		wait_signalfd(sigfd, stop_ms);
 		goto cleanup;
-	}
+	} else
+    if (app_font_multipl) {
+        printf("The font multiplier will be ingored without text");
+    }
 
 cleanup:
 	if (sigfd != -1)
