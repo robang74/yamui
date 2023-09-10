@@ -41,10 +41,12 @@ static struct option options[] = {
 	{"fontmultipl", required_argument, 0, 'm'},
 	{"xpos",        required_argument, 0, 'x'},
 	{"ypos",        required_argument, 0, 'x'},
+	{"skip-cleanup",no_argument,       0, 'c'},
 	{"help",        no_argument,       0, 'h'},
 	{0, 0, 0, 0},
 };
 
+static bool do_cleanup = 1;
 static unsigned long long int app_font_multipl = 0;
 static unsigned long long int app_text_xpos = 0, app_text_ypos = 0;
 
@@ -108,6 +110,8 @@ print_help(void)
 	printf("         Set the text horizontal center to x/1000 of the screen width\n");
 	printf("  --ypos=THOUSANDTHS, -y THOUSANDTHS\n");
 	printf("         Set the text vertical origin to y/1000 of the screen height\n");
+	printf("  --skip-cleanup, -c\n");
+	printf("         Skip display cleanup at exit.\n");
 	printf("  --help, -h\n");
 	printf("         Print this help\n");
 }
@@ -116,18 +120,14 @@ print_help(void)
 
 /* Add text to both sides of the "flip" */
 static void
-add_text(char *text, bool flip)
+add_text(char *text)
 {
-	//int i = 0;
 	if (!text)
 		return;
 
-	//for (i = 0; i < 2; i++) {
-		gr_color(255, 255, 255, 255);
-		gr_text(app_text_xpos, app_text_ypos, text, 1, app_font_multipl);
-		gr_copy();
-	    if(flip) {}; //gr_flip();
-	//}
+	gr_color(255, 255, 255, 255);
+	gr_text(app_text_xpos, app_text_ypos, text, 1, app_font_multipl);
+	gr_copy();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -151,7 +151,7 @@ main(int argc, char *argv[])
 	setlinebuf(stdout);
 
 	while (1) {
-		c = getopt_long(argc, argv, "a:i:p:s:t:m:x:y:h", options,
+		c = getopt_long(argc, argv, "a:i:p:s:t:m:x:y:ch", options,
 				&option_index);
 		if (c == -1)
 			break;
@@ -160,6 +160,10 @@ main(int argc, char *argv[])
 		case 'a':
 			printf("got animate %s ms\n", optarg);
 			animate_ms = strtoul(optarg, (char **)NULL, 10);
+			break;
+		case 'c':
+			printf("skip display clean up\n");
+			do_cleanup = false;
 			break;
 		case 'i':
 			printf("got imagesdir \"%s\"\n", optarg);
@@ -211,6 +215,7 @@ main(int argc, char *argv[])
 
 	while (optind < argc && image_count < IMAGES_MAX)
 		images[image_count++] = argv[optind++];
+	printf("got %d image(s)\n", image_count);
 
 	if (osUpdateScreenInit())
 		return -1;
@@ -222,49 +227,17 @@ main(int argc, char *argv[])
 	sigfd = signalfd(-1, &mask, 0);
 	if (sigfd == -1) {
 		printf("Could not create signal fd\n");
-		goto cleanup;
+		goto cleanup; //RAF, TODO: it can be return -1 here
 	}
 	if (sigprocmask(SIG_BLOCK, &mask, NULL) == -1) {
 		printf("Could not block signals\n");
-		goto cleanup;
+		goto cleanup; //RAF, TODO: it can be return -1 here
 	}
 
 	/* In case there is text to add, add it to both sides of the "flip" */
-	add_text(text, !image_count);
-
-	if (image_count == 1 && !progress_ms) {
-		ret = loadLogo(images[0], images_dir);
-		if (ret) {
-			printf("Image \"%s\" not found in /res/images/\n",
-			       images[0]);
-			goto cleanup;
-		}
-
-		showLogo();
-		wait_signalfd(sigfd, stop_ms);
-
-		goto cleanup;
-	}
-
-	if (image_count <= 1 && progress_ms) {
-		if (image_count == 1)
-			loadLogo(images[0], images_dir);
-		i = 0;
-		while (i <= 100) {
-			osUpdateScreenShowProgress(i);
-			if (wait_signalfd(sigfd, progress_ms / 100))
-				break;
-			i++;
-		}
-
-		goto cleanup;
-	}
-
-	if (image_count > 1 && progress_ms) {
-		printf("Can only show one image with progressbar\n");
-		goto cleanup;
-	}
-
+	if(text)
+	    add_text(text);
+		
 	if (animate_ms) {
 		bool never_stop;
 		long int time_left = stop_ms;
@@ -272,21 +245,16 @@ main(int argc, char *argv[])
 
 		if (image_count < 2) {
 			printf("Animating requires at least 2 images\n");
-			goto cleanup;
 		}
 
 		never_stop = !stop_ms;
 
 		i = 0;
 		while (never_stop || time_left > 0) {
-			ret = loadLogo(images[i], images_dir);
-			if (ret) {
-				printf("\"%s\" not found in /res/images/\n",
-				       images[i]);
-				goto cleanup;
-			}
-
-			showLogo();
+			if(loadLogo(images[i], images_dir))
+				printf("\"%s\" not found in /res/images/\n", images[i]);
+            else
+			    showLogo();
 			if (wait_signalfd(sigfd, period))
 				break;
 			time_left -= period;
@@ -295,8 +263,32 @@ main(int argc, char *argv[])
 		}
 
 		goto cleanup;
-	}
+	} else
+	if (progress_ms) {
+	    if (image_count > 1 && progress_ms)
+		    printf("Can only show one image with progressbar\n");
 
+		if (image_count && loadLogo(images[0], images_dir))
+			printf("Image \"%s\" not found in /res/images/\n", images[0]);
+
+		for(i = 0; i <= 100; i++) {
+		    //RAF: this function shows also the logo
+			osUpdateScreenShowProgress(i);
+			if (wait_signalfd(sigfd, progress_ms / 100))
+				break;
+		}
+
+		goto cleanup;
+	} else
+	if (image_count) {
+		if(loadLogo(images[0], images_dir))
+			printf("Image \"%s\" not found in /res/images/\n", images[0]);
+        else
+		    showLogo();
+		wait_signalfd(sigfd, stop_ms);
+		goto cleanup;
+	}
+	
 	if (text) {
 		wait_signalfd(sigfd, stop_ms);
 		goto cleanup;
@@ -312,7 +304,8 @@ main(int argc, char *argv[])
 cleanup:
 	if (sigfd != -1)
 		close(sigfd);
-	osUpdateScreenExit();
+	if (do_cleanup)
+	    osUpdateScreenExit();
 out:
 	return ret;
 }
