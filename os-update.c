@@ -50,26 +50,38 @@ loadLogo(const char *filename, const char *dir)
 /* ------------------------------------------------------------------------ */
 
 int
-showLogo(void)
+gr_logo(void)
 {
-	int fbw = gr_fb_width();
-	int fbh = gr_fb_height();
-
-	/* draw logo to middle of the screen */
-	if (logo) {
-		int logow = gr_get_width(logo);
-		int logoh = gr_get_height(logo);
-		int dx = (fbw - logow) / 2;
-		int dy = (fbh - logoh) / 2;
-
-		gr_blit(logo, 0, 0, logow, logoh, dx, dy);
-		gr_flip();
-	} else {
+	if (!logo) {
 		printf("No logo loaded\n");
 		return -1;
 	}
+	
+    /* draw logo to middle of the screen */
+    int fbw = gr_fb_width();
+    int fbh = gr_fb_height();
+    int logow = gr_get_width(logo);
+    int logoh = gr_get_height(logo);
+    int dx = (fbw - logow) >> 1;
+    int dy = (fbh - logoh) >> 1;
+
+    gr_blit(logo, 0, 0, logow, logoh, dx, dy);
 
 	return 0;
+}
+
+int
+showLogo(void)
+{
+    if (!logo) {
+        printf("No logo loaded\n");
+        return -1;
+    }
+	
+    gr_logo();
+    gr_flip();
+
+    return 0;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -106,22 +118,7 @@ osUpdateScreenShowProgress(int percentage)
 	gr_fill(x1, y1, x2, y2);
 
 	/* draw logo on the top of the progress bar if it is loaded */
-	if (logo) {
-		int logow, logoh, dx, dy;
-
-		logow = gr_get_width(logo);
-		logoh = gr_get_height(logo);
-		dx = (fbw - logow) / 2;
-		dy = (fbh / 2 - logoh - 2 * MARGIN);
-#ifdef DEBUG
-		printf("width: %i, height: %i, row_bytes: %i, pixel_bytes: "
-		       "%i\n",
-		       logo->width, logo->height, logo->row_bytes,
-		       logo->pixel_bytes);
-#endif /* DEBUG */
-
-		gr_blit(logo, 0, 0, logow, logoh, dx, dy);
-	}
+	if (logo) gr_logo();
 
 	/* And finally draw everything */
 	gr_flip();

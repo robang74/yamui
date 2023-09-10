@@ -143,8 +143,8 @@ add_text(char *text)
 
 	gr_color(255, 255, 255, 255);
 	gr_text(app_text_xpos, app_text_ypos, text, 1, app_font_multipl);
-	gr_flip();
 	gr_copy();
+	gr_flip();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -252,8 +252,7 @@ main(int argc, char *argv[])
 	}
 
 	/* In case there is text to add, add it to both sides of the "flip" */
-	if(text)
-	    add_text(text);
+	if(text) add_text(text);
 		
 	if (animate_ms) {
 		bool never_stop;
@@ -317,6 +316,8 @@ main(int argc, char *argv[])
             osUpdateScreenShowProgress(100);
         if(trst > 0)
             wait_signalfd(sigfd, trst);
+        printf("progress bar ended with wtme: %d, trst: %d, i: %d\n",
+            wtme, trst, i);
 
         goto cleanup;
 	} else
@@ -325,6 +326,7 @@ main(int argc, char *argv[])
 			printf("Image \"%s\" not found in /res/images/\n", images[0]);
         else
 		    showLogo();
+
 		wait_signalfd(sigfd, stop_ms);
 		goto cleanup;
 	}
