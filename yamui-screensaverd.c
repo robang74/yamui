@@ -132,7 +132,7 @@ turn_display_on(void)
 	if (display_state == state_on)
 		return 0;
 
-	debugf("Turning display on.");
+	printf("Turning display on.\n");
 	display_state = state_on;
 	ret = sysfs_write_int(display_control, display_control_on_value);
 #ifdef __arm___
@@ -149,7 +149,7 @@ turn_display_off(void)
 	if (display_state == state_off)
 		return 0;
 
-	debugf("Turning display off.");
+	printf("Turning display off.\n");
 	display_state = state_off;
 #ifdef __arm__
 	gr_save(); /* Qualcomm specific. TODO: implement generic solution. */
@@ -202,6 +202,9 @@ main(void)
 	if (getenv("DISPLAY_BRIGHTNESS") != NULL) {
 		display_control_on_value = atoi(getenv("DISPLAY_BRIGHTNESS"));
 	}
+	
+    printf("path: %s, max brightness: %d\n", display_control,
+        display_control_on_value);
 
 	debugf("Started");
 	signal(SIGINT,  signal_handler);
