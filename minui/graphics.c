@@ -58,6 +58,10 @@ static unsigned char gr_current_a = 255;
 
 static GRSurface *gr_draw = NULL;
 
+static long long unsigned a = -1;
+#define get_time_ms(a) _get_time_ms(a, __LINE__)
+long long unsigned _get_time_ms(long long int tms, int line);
+
 /* ------------------------------------------------------------------------ */
 
 static bool
@@ -388,6 +392,8 @@ gr_init_font(void)
 {
 	int res;
 	static const char font_path[] = "/res/images/font.png";
+	
+	a = get_time_ms(a);
 
 	/* TODO: Check for error */
 	gr_font = calloc(sizeof(*gr_font), 1);
@@ -409,10 +415,11 @@ gr_init_font(void)
 	else {
 		printf("%s: failed to read font: res=%d\n", font_path, res);
 	}
+	
+	a = get_time_ms(a);
 
 	if (!font_loaded) {
 		unsigned char *bits, data, *in = font.rundata;
-
 
 		/* fall back to the compiled-in font. */
 		/* TODO: Check for error */
@@ -421,6 +428,8 @@ gr_init_font(void)
 		gr_font->texture->height = font.height;
 		gr_font->texture->row_bytes = font.width;
 		gr_font->texture->pixel_bytes = 1;
+		
+	    a = get_time_ms(a);
 
 		/* TODO: Check for error */
 		bits = malloc(font.width * font.height);
@@ -433,6 +442,8 @@ gr_init_font(void)
 
 		gr_font->cwidth = font.cwidth;
 		gr_font->cheight = font.cheight;
+
+		a = get_time_ms(a);
 	}
 }
 
@@ -456,7 +467,12 @@ gr_copy(void)
 int
 gr_init(bool blank)
 {
+
+    a = get_time_ms(a);
+
 	gr_init_font();
+
+    a = get_time_ms(a);
 
 	if ((gr_vt_fd = open("/dev/tty0", O_RDWR | O_SYNC)) < 0) {
 		/* This is non-fatal; post-Cupcake kernels don't have tty0. */
@@ -468,6 +484,8 @@ gr_init(bool blank)
 		gr_exit();
 		return -1;
 	}
+
+	a = get_time_ms(a);
 /*
 	gr_backend = open_adf();
 	if (gr_backend) {
@@ -492,6 +510,8 @@ gr_init(bool blank)
 		if (!gr_draw)
 			return -1;
 	}
+
+	a = get_time_ms(a);
 /*
 	}
 */
@@ -504,6 +524,8 @@ gr_init(bool blank)
 
 	overscan_offset_x = gr_draw->width  * overscan_percent / 100;
 	overscan_offset_y = gr_draw->height * overscan_percent / 100;
+
+	a = get_time_ms(a);
 
 	return 0;
 }

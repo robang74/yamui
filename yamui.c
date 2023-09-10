@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-
 #define _DEFAULT_SOURCE
 
 #include <stdio.h>
@@ -49,6 +48,10 @@ static struct option options[] = {
 static bool do_cleanup = true;
 static unsigned long long int app_font_multipl = 0;
 static unsigned long long int app_text_xpos = 0, app_text_ypos = 0;
+
+static long long unsigned a = -1;
+#define get_time_ms(a) _get_time_ms(a, __LINE__)
+long long unsigned _get_time_ms(long long int tms, int line);
 
 /* ------------------------------------------------------------------------ */
 
@@ -164,6 +167,8 @@ main(int argc, char *argv[])
 	int i = 0;
 	int sigfd = -1;
 	sigset_t mask;
+	
+	a = get_time_ms(a);
 
 	setlinebuf(stdout);
 
@@ -234,8 +239,12 @@ main(int argc, char *argv[])
 		images[image_count++] = argv[optind++];
 	printf("got %d image(s)\n", image_count);
 
+	a = get_time_ms(a);
+
 	if (osUpdateScreenInit())
 		return -1;
+
+    a = get_time_ms(a);
 
 	/* Allow SIGTERM and SIGINT to interrupt pselect() and move to cleanup */
 	sigemptyset(&mask);
@@ -251,10 +260,16 @@ main(int argc, char *argv[])
 		goto cleanup; //RAF, TODO: it can be return -1 here
 	}
 
+	a = get_time_ms(a);
+
 	/* In case there is text to add, add it to both sides of the "flip" */
 	if(text) add_text(text);
-		
+
+	a = get_time_ms(a);
+
 	if (animate_ms) {
+	    a = get_time_ms(a);
+
 		bool never_stop;
 		long int time_left = stop_ms;
 		int period = animate_ms / image_count;
@@ -281,6 +296,8 @@ main(int argc, char *argv[])
 		goto cleanup;
 	} else
 	if (progress_ms) {
+	    a = get_time_ms(a);
+
         if (image_count > 1 && progress_ms)
             printf("Can only show one image with progressbar\n");
 
@@ -322,6 +339,8 @@ main(int argc, char *argv[])
         goto cleanup;
 	} else
 	if (image_count) {
+	    a = get_time_ms(a);
+
 		if(loadLogo(images[0], images_dir))
 			printf("Image \"%s\" not found in /res/images/\n", images[0]);
         else
@@ -332,7 +351,8 @@ main(int argc, char *argv[])
 	}
 	
 	if (text) {
-		wait_signalfd(sigfd, stop_ms);
+		if(stop_ms)
+		    wait_signalfd(sigfd, stop_ms);
 		goto cleanup;
 	} else {
         if (app_font_multipl) {
@@ -344,6 +364,7 @@ main(int argc, char *argv[])
     }
 
 cleanup:
+    a = get_time_ms(a);
 	if (sigfd != -1)
 		close(sigfd);
 	if (do_cleanup)

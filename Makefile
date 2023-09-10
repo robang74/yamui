@@ -40,19 +40,21 @@ mostlyclean::
 	$(RM) *.bak *~ */*.bak */*~
 
 MINUI_SRC += minui/graphics.c
-MINUI_SRC += minui/graphics_fbdev.c
 MINUI_SRC += minui/events.c
 MINUI_SRC += minui/resources.c
 MINUI_SRC += minui/graphics_drm.c
+MINUI_SRC += minui/graphics_fbdev.c
 
 YAMUI_SRC += yamui.c
 YAMUI_SRC += os-update.c
+YAMUI_SRC += get_time_ms.c
 YAMUI_SRC += $(MINUI_SRC)
 YAMUI_OBJ := $(patsubst %.c, %.o, $(YAMUI_SRC))
 
 yamui: $(YAMUI_OBJ)
 
 SCREENSAVERD_SRC += yamui-screensaverd.c
+SCREENSAVERD_SRC += get_time_ms.c
 SCREENSAVERD_SRC += yamui-tools.c
 SCREENSAVERD_SRC += $(MINUI_SRC)
 SCREENSAVERD_OBJ := $(patsubst %.c, %.o, $(SCREENSAVERD_SRC))
