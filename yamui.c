@@ -46,14 +46,14 @@ static struct option options[] = {
 	{0, 0, 0, 0},
 };
 
-static bool do_cleanup = 1;
+static bool do_cleanup = true;
 static unsigned long long int app_font_multipl = 0;
 static unsigned long long int app_text_xpos = 0, app_text_ypos = 0;
 
 /* ------------------------------------------------------------------------ */
 
-static int
-wait_signalfd(int sigfd, unsigned long long int msecs)
+static int __attribute__((unused))
+_wait_signalfd(int sigfd, unsigned long long int msecs)
 {
 	int ret;
 	fd_set fdset;
@@ -72,6 +72,22 @@ wait_signalfd(int sigfd, unsigned long long int msecs)
 	else if (ret == -1)
 		printf("An error occured, bailing out\n");
 	return ret;
+}
+
+#include <errno.h>
+#include <unistd.h>
+#include <string.h>
+
+static int
+wait_signalfd(int sigfd, unsigned long long int msecs)
+{
+    (void)sigfd;
+    int ret = usleep(msecs * 1000);
+    if (ret > 0)
+        printf("Interrupted, bailing out\n");
+    else if (ret < 0)
+        printf("An error occured, errno(%d): %s\n", errno, strerror(errno));
+    return ret;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -127,6 +143,7 @@ add_text(char *text)
 
 	gr_color(255, 255, 255, 255);
 	gr_text(app_text_xpos, app_text_ypos, text, 1, app_font_multipl);
+	gr_flip();
 	gr_copy();
 }
 
@@ -265,20 +282,43 @@ main(int argc, char *argv[])
 		goto cleanup;
 	} else
 	if (progress_ms) {
-	    if (image_count > 1 && progress_ms)
-		    printf("Can only show one image with progressbar\n");
+        if (image_count > 1 && progress_ms)
+            printf("Can only show one image with progressbar\n");
 
-		if (image_count && loadLogo(images[0], images_dir))
-			printf("Image \"%s\" not found in /res/images/\n", images[0]);
+        if (image_count && loadLogo(images[0], images_dir))
+            printf("Image \"%s\" not found in /res/images/\n", images[0]);
 
-		for(i = 0; i <= 100; i++) {
-		    //RAF: this function shows also the logo
-			osUpdateScreenShowProgress(i);
-			if (wait_signalfd(sigfd, progress_ms / 100))
-				break;
-		}
+        if (progress_ms > (1ULL<<31)) {
+            printf("Cannot use a progress_ms value bigger than 2^31\n");
+            progress_ms = (1ULL<<31);
+        }
 
-		goto cleanup;
+        if(progress_ms < 100) {
+            osUpdateScreenShowProgress(100);
+	        wait_signalfd(sigfd, progress_ms);
+            goto cleanup;
+        }
+
+        int wtme = progress_ms/100, trst = progress_ms, step = 1;
+
+        if(wtme < 10) {
+            wtme = progress_ms/10;
+            step = 10;
+        }
+        for (i = 0; i <= 100; i += step) {
+            osUpdateScreenShowProgress(i);
+            if (wait_signalfd(sigfd, wtme))
+                break;
+            trst -= wtme;
+            if(trst < wtme)
+                break;
+        }
+        if(i < 100)
+            osUpdateScreenShowProgress(100);
+        if(trst > 0)
+            wait_signalfd(sigfd, trst);
+
+        goto cleanup;
 	} else
 	if (image_count) {
 		if(loadLogo(images[0], images_dir))
