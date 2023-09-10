@@ -156,7 +156,7 @@ void
 gr_text(int x, int y, const char *s, int bold, int factor)
 {
 	GRFont *font = gr_font;
-	unsigned off;
+	unsigned off, strw;
 
 	if (!font->texture)
 		return;
@@ -166,11 +166,17 @@ gr_text(int x, int y, const char *s, int bold, int factor)
 
 	bold = bold && (font->texture->height != font->cheight);
 
-	x += overscan_offset_x;
-	y += overscan_offset_y;
-	
-	printf("gr_draw -> width: %d, height: %d\n",
-	    gr_draw->width, gr_draw->height);
+	strw = (font->cwidth * factor * strlen(s)) >> 1; //RAF: center the text
+
+    x = (500 + (gr_draw->width  * x)) / 1000 + overscan_offset_x - strw;
+    y = (500 + (gr_draw->height * y)) / 1000 + overscan_offset_y;
+
+    x = (x < 20) ? 20 : x; //RAF: 20px this seem necessary in some screens
+    y = (y < 20) ? 20 : y; //RAF: 20px this seem necessary in some screens
+
+	printf("gr_draw -> width: %d, height: %d, off: %d.%d, pos: %d.%d\n",
+	    gr_draw->width, gr_draw->height,overscan_offset_x, overscan_offset_y,
+	    x, y);
 
 	while ((off = *s++)) {
 		off -= 32;
@@ -436,6 +442,13 @@ void
 gr_flip(void)
 {
 	gr_draw = gr_backend->flip(gr_backend);
+}
+
+void
+gr_copy(void)
+{
+    memcpy(((GRSurface *)gr_backend->flip(gr_backend))->data, gr_draw->data,
+        gr_draw->width * gr_draw->height << 2);
 }
 
 /* ------------------------------------------------------------------------ */

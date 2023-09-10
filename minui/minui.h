@@ -44,6 +44,7 @@ int  gr_fb_width(void);
 int  gr_fb_height(void);
 
 void gr_flip(void);
+void gr_copy(void);
 void gr_fb_blank(bool blank);
 
 void gr_clear(void); /* clear entire surface to current color */

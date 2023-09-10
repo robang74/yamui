@@ -39,11 +39,14 @@ static struct option options[] = {
 	{"stopafter",   required_argument, 0, 's'},
 	{"text",        required_argument, 0, 't'},
 	{"fontmultipl", required_argument, 0, 'm'},
+	{"xpos",        required_argument, 0, 'x'},
+	{"ypos",        required_argument, 0, 'x'},
 	{"help",        no_argument,       0, 'h'},
 	{0, 0, 0, 0},
 };
 
 static unsigned long long int app_font_multipl = 0;
+static unsigned long long int app_text_xpos = 0, app_text_ypos = 0;
 
 /* ------------------------------------------------------------------------ */
 
@@ -101,6 +104,10 @@ print_help(void)
 	printf("         Show STRING on the screen\n");
 	printf("  --fontmultipl=FACTOR, -m FACTOR\n");
 	printf("         Increase the font size by a factor between 1 and 16\n");
+	printf("  --xpos=THOUSANDTHS, -x THOUSANDTHS\n");
+	printf("         Set the text horizontal center to x/1000 of the screen width\n");
+	printf("  --ypos=THOUSANDTHS, -y THOUSANDTHS\n");
+	printf("         Set the text vertical origin to y/1000 of the screen height\n");
 	printf("  --help, -h\n");
 	printf("         Print this help\n");
 }
@@ -109,17 +116,18 @@ print_help(void)
 
 /* Add text to both sides of the "flip" */
 static void
-add_text(char *text)
+add_text(char *text, bool flip)
 {
-	int i = 0;
+	//int i = 0;
 	if (!text)
 		return;
 
-	for (i = 0; i < 2; i++) {
+	//for (i = 0; i < 2; i++) {
 		gr_color(255, 255, 255, 255);
-		gr_text(20,20, text, 1, app_font_multipl);
-		gr_flip();
-	}
+		gr_text(app_text_xpos, app_text_ypos, text, 1, app_font_multipl);
+		gr_copy();
+	    if(flip) {}; //gr_flip();
+	//}
 }
 
 /* ------------------------------------------------------------------------ */
@@ -143,7 +151,7 @@ main(int argc, char *argv[])
 	setlinebuf(stdout);
 
 	while (1) {
-		c = getopt_long(argc, argv, "a:i:p:s:t:m:h", options,
+		c = getopt_long(argc, argv, "a:i:p:s:t:m:x:y:h", options,
 				&option_index);
 		if (c == -1)
 			break;
@@ -181,6 +189,14 @@ main(int argc, char *argv[])
             printf("got font %s multipier\n", optarg);
             app_font_multipl = strtoull(optarg, NULL, 10);
             break;
+        case 'x':
+            printf("got text x-pos: %s/1000\n", optarg);
+            app_text_xpos = strtoull(optarg, NULL, 10);
+            break;
+        case 'y':
+            printf("got text y-pos: %s/1000\n", optarg);
+            app_text_ypos = strtoull(optarg, NULL, 10);
+            break;
 		case 'h':
 			print_help();
 			goto out;
@@ -214,7 +230,7 @@ main(int argc, char *argv[])
 	}
 
 	/* In case there is text to add, add it to both sides of the "flip" */
-	add_text(text);
+	add_text(text, !image_count);
 
 	if (image_count == 1 && !progress_ms) {
 		ret = loadLogo(images[0], images_dir);
@@ -284,9 +300,13 @@ main(int argc, char *argv[])
 	if (text) {
 		wait_signalfd(sigfd, stop_ms);
 		goto cleanup;
-	} else
-    if (app_font_multipl) {
-        printf("The font multiplier will be ingored without text");
+	} else {
+        if (app_font_multipl) {
+            printf("The font multiplier will be ingored without text");
+        }
+        if (app_text_xpos || app_text_ypos) {
+            printf("The x-pos and y-pos will be ingored without text");
+        }
     }
 
 cleanup:
