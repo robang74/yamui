@@ -37,6 +37,10 @@
 #endif
 #define RECOVERY_RGBX 1
 
+#define MSTIME_HEADER_ONLY
+#define MSTIME_STATIC_VARS
+#include "../get_time_ms.c"
+
 struct drm_surface {
     GRSurface base;
     uint32_t fb_id;
@@ -329,6 +333,9 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
     char *dev_name;
     int width, height;
     int ret, i;
+
+    get_ms_time_run();
+
     /* Consider DRM devices in order. */
     for (i = 0; i < DRM_MAX_MINOR; i++) {
         uint64_t cap = 0;
@@ -362,6 +369,9 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
         perror("cannot find/open a drm device");
         return NULL;
     }
+
+    get_ms_time_run();
+
     main_monitor_connector = find_main_monitor(drm_fd,
             res, &selected_mode);
     if (!main_monitor_connector) {
@@ -370,6 +380,9 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
         close(drm_fd);
         return NULL;
     }
+
+    get_ms_time_run();
+
     main_monitor_crtc = find_crtc_for_connector(drm_fd, res,
                                                 main_monitor_connector);
     if (!main_monitor_crtc) {
@@ -378,12 +391,21 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
         close(drm_fd);
         return NULL;
     }
+
+    get_ms_time_run();
+
     disable_non_main_crtcs(drm_fd,
                            res, main_monitor_crtc);
     main_monitor_crtc->mode = main_monitor_connector->modes[selected_mode];
     width = main_monitor_crtc->mode.hdisplay;
     height = main_monitor_crtc->mode.vdisplay;
+
+    get_ms_time_run();
+
     drmModeFreeResources(res);
+
+    get_ms_time_run();
+
     drm_surfaces[0] = drm_create_surface(width, height);
     drm_surfaces[1] = drm_create_surface(width, height);
     if (!drm_surfaces[0] || !drm_surfaces[1]) {
@@ -393,9 +415,16 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
         close(drm_fd);
         return NULL;
     }
+
+    get_ms_time_run();
+
     current_buffer = 0;
     drm_enable_crtc(drm_fd, main_monitor_crtc, drm_surfaces[1]);
-    printf("drm init -> width: %d, height: %d\n", width, height);
+
+    get_ms_time_run();
+
+    printf("drm init width: %d, height: %d\n", width, height);
+
     return &(drm_surfaces[0]->base);
 }
 
