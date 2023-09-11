@@ -131,6 +131,7 @@ short_help(void)
 static void
 print_help(void)
 {
+	printf("\n");
 	printf("  yamui - tool to display progress bar, logo, or small animation on UI\n");
 	short_help();
 	printf("    DIR        - the folder path in which the images are searched or\n");
@@ -268,7 +269,7 @@ main(int argc, char *argv[])
 			goto out;
 			break;
 		default:
-			printf("getopt returned character code 0x%02x, ignored\n", c);
+			printf("getopt option '-%c' unrecognised, ignored\n", c);
 			break;
 		}
 	}
@@ -312,9 +313,7 @@ main(int argc, char *argv[])
 	get_ms_time_run();
 
 	if (animate_ms) {
-	    get_ms_time_run();
-
-		bool never_stop;
+		bool never_stop = !stop_ms;
 		long int time_left = stop_ms;
 		int period = animate_ms / image_count;
 
@@ -322,14 +321,16 @@ main(int argc, char *argv[])
 			printf("Animating requires at least 2 images\n");
 		}
 
-		never_stop = !stop_ms;
+		get_ms_time_run();
 
 		i = 0;
-		while (never_stop || time_left > 0) {
+		never_stop = !stop_ms;
+		while (never_stop || time_left > 0) {	        
 			if(loadLogo(images[i], images_dir))
 				printf("\"%s\" not found in /res/images/\n", images[i]);
             else
 			    showLogo();
+
 			if (wait_signalfd(sigfd, period))
 				break;
 			time_left -= period;
@@ -337,11 +338,11 @@ main(int argc, char *argv[])
 			i = i % image_count;
 		}
 
+	    get_ms_time_run();
+
 		goto cleanup;
 	} else
 	if (progress_ms) {
-	    get_ms_time_run();
-
         if (image_count > 1 && progress_ms)
             printf("Can only show one image with progressbar\n");
 
@@ -361,6 +362,8 @@ main(int argc, char *argv[])
 
         int wtme = progress_ms/100, trst = progress_ms, step = 1;
 
+        get_ms_time_run();
+
         if(wtme < 10) {
             wtme = progress_ms/10;
             step = 10;
@@ -377,6 +380,9 @@ main(int argc, char *argv[])
             osUpdateScreenShowProgress(100);
         if(trst > 0)
             wait_signalfd(sigfd, trst);
+
+        get_ms_time_run();
+
         printf("progress bar ended with wtme: %d, trst: %d, i: %d\n",
             wtme, trst, i);
 
@@ -389,6 +395,8 @@ main(int argc, char *argv[])
 			printf("Image \"%s\" not found in /res/images/\n", images[0]);
         else
 		    showLogo();
+		    
+		get_ms_time_run();
 
 		wait_signalfd(sigfd, stop_ms);
 		goto cleanup;
@@ -407,11 +415,12 @@ main(int argc, char *argv[])
     }
 
 cleanup:
-    get_ms_time_run();
-	if (sigfd != -1)
-		close(sigfd);
-	if (do_cleanup)
-	    osUpdateScreenExit();
+    if (!do_cleanup)
+        goto out;
+    if (sigfd != -1)
+	    close(sigfd);
+	sigfd = -1;
+    osUpdateScreenExit();
 out:
 	return ret;
 }

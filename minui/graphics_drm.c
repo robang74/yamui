@@ -437,7 +437,7 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
     current_buffer = 0;
     drm_enable_crtc(drm_fd, main_monitor_crtc, drm_surfaces[1]);
 
-    get_ms_time_run(); //RAF: 0.283s are spent in drm_enable_crtc()
+    get_ms_time_run(); //RAF: 0.290s are spent in drm_enable_crtc()
 
     drmModeFreeConnector(main_monitor_connector);
     main_monitor_connector = NULL;
@@ -446,7 +446,7 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
 
     get_ms_time_run();
 
-    printf("drm init - minor: %d, width: %d, height: %d\n",
+    printf("drm init -> minor: %d, width: %d, height: %d\n",
         minor, width, height);
 
     return &(drm_surfaces[0]->base);
