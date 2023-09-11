@@ -25,6 +25,7 @@ make
 
 %files
 %defattr(-,root,root,-)
+%{_bindir}/mstime
 %{_bindir}/%{name}
 %{_bindir}/%{name}-powerkey
 %{_bindir}/%{name}-screensaverd
