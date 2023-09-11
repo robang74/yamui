@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2015 The Android Open Source Project
  * Copyright (c) 2019 - 2023 Jolla Ltd.
+ * Copyright (c) 2023, Roberto A. Foglietta <roberto.foglietta@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,7 +51,7 @@ struct drm_surface {
 static struct drm_surface *drm_surfaces[2];
 static int current_buffer;
 static drmModeCrtc *main_monitor_crtc;
-static drmModeConnector *main_monitor_connector;
+static drmModeConnector * __restrict main_monitor_connector = NULL;
 static int drm_fd = -1;
 
 static void drm_disable_crtc(int drm_fd, drmModeCrtc *crtc) {
@@ -204,7 +205,7 @@ static drmModeCrtc *find_crtc_for_connector(int fd,
                             drmModeRes *resources,
                             drmModeConnector *connector) {
     int i, j;
-    drmModeEncoder *encoder;
+    drmModeEncoder * __restrict encoder;
     int32_t crtc;
     /*
      * Find the encoder. If we already have one, just use it.
@@ -274,10 +275,12 @@ static drmModeConnector *find_first_connected_connector(int fd,
     return NULL;
 }
 
-static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources,
-        uint32_t *mode_index) {
+static drmModeConnector *
+find_main_monitor(int fd, drmModeRes *resources, uint32_t *mode_index)
+{
     unsigned i = 0;
     int modes;
+
     /* Look for LVDS/eDP/DSI connectors. Those are the main screens. */
     unsigned kConnectorPriority[] = {
         DRM_MODE_CONNECTOR_LVDS,
@@ -285,19 +288,23 @@ static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources,
         DRM_MODE_CONNECTOR_DSI,
     };
     drmModeConnector *main_monitor_connector = NULL;
+
     do {
         main_monitor_connector = find_used_connector_by_type(fd,
                                          resources,
                                          kConnectorPriority[i]);
         i++;
     } while (!main_monitor_connector && i < ARRAY_SIZE(kConnectorPriority));
+
     /* If we didn't find a connector, grab the first one that is connected. */
     if (!main_monitor_connector)
         main_monitor_connector =
                 find_first_connected_connector(fd, resources);
+
     /* If we still didn't find a connector, give up and return. */
     if (!main_monitor_connector)
         return NULL;
+
     *mode_index = 0;
     for (modes = 0; modes < main_monitor_connector->count_modes; modes++) {
         if (main_monitor_connector->modes[modes].type &
@@ -306,6 +313,7 @@ static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources,
             break;
         }
     }
+
     return main_monitor_connector;
 }
 
@@ -328,16 +336,17 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
     (void)backend;
     (void)blank;
 
-    drmModeRes *res = NULL;
+    drmModeRes * __restrict res = NULL;
+
     uint32_t selected_mode;
     char *dev_name;
     int width, height;
-    int ret, i;
+    int minor, ret;
 
     get_ms_time_run();
 
     /* Consider DRM devices in order. */
-    for (i = 0; i < DRM_MAX_MINOR; i++) {
+    for (int_fast32_t i = 0; i < DRM_MAX_MINOR; i++) {
         uint64_t cap = 0;
         ret = asprintf(&dev_name, DRM_DEV_NAME, DRM_DIR_NAME, i);
         if (ret < 0)
@@ -357,28 +366,43 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
             close(drm_fd);
             continue;
         }
+
+        minor = i;
         /* Use this device if it has at least one connected monitor. */
         if (res->count_crtcs > 0 && res->count_connectors > 0)
             if (find_first_connected_connector(drm_fd, res))
                 break;
+
         drmModeFreeResources(res);
-        close(drm_fd);
         res = NULL;
+        close(drm_fd);
+        drm_fd = -1;
     }
     if (drm_fd < 0 || res == NULL) {
         perror("cannot find/open a drm device");
-        return NULL;
+        goto exit_with_error;
     }
 
     get_ms_time_run();
+
+#if 0 //https://gist.github.com/Miouyouyou/2f227fd9d4116189625f501c0dcf0542
+
+	/* Get the preferred resolution */
+	for (int_fast32_t m = 0; m < valid_connector->count_modes; m++) {
+		drmModeModeInfo * __restrict tested_resolution =
+			&valid_connector->modes[m];
+		if (tested_resolution->type & DRM_MODE_TYPE_PREFERRED) {
+			chosen_resolution = tested_resolution;
+			break;
+		}
+	}
+#endif
 
     main_monitor_connector = find_main_monitor(drm_fd,
             res, &selected_mode);
     if (!main_monitor_connector) {
         printf("main_monitor_connector not found\n");
-        drmModeFreeResources(res);
-        close(drm_fd);
-        return NULL;
+        goto exit_with_error;
     }
 
     get_ms_time_run();
@@ -387,9 +411,7 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
                                                 main_monitor_connector);
     if (!main_monitor_crtc) {
         printf("main_monitor_crtc not found\n");
-        drmModeFreeResources(res);
-        close(drm_fd);
-        return NULL;
+        goto exit_with_error;
     }
 
     get_ms_time_run();
@@ -402,18 +424,12 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
 
     get_ms_time_run();
 
-    drmModeFreeResources(res);
-
-    get_ms_time_run();
-
     drm_surfaces[0] = drm_create_surface(width, height);
     drm_surfaces[1] = drm_create_surface(width, height);
     if (!drm_surfaces[0] || !drm_surfaces[1]) {
         drm_destroy_surface(drm_surfaces[0]);
         drm_destroy_surface(drm_surfaces[1]);
-        drmModeFreeResources(res);
-        close(drm_fd);
-        return NULL;
+        goto exit_with_error;
     }
 
     get_ms_time_run();
@@ -421,11 +437,31 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
     current_buffer = 0;
     drm_enable_crtc(drm_fd, main_monitor_crtc, drm_surfaces[1]);
 
+    get_ms_time_run(); //RAF: 0.283s are spent in drm_enable_crtc()
+
+    drmModeFreeConnector(main_monitor_connector);
+    main_monitor_connector = NULL;
+    drmModeFreeResources(res);
+    res = NULL;
+
     get_ms_time_run();
 
-    printf("drm init width: %d, height: %d\n", width, height);
+    printf("drm init - minor: %d, width: %d, height: %d\n",
+        minor, width, height);
 
     return &(drm_surfaces[0]->base);
+
+exit_with_error:
+    if(main_monitor_connector)
+        drmModeFreeConnector(main_monitor_connector);
+    main_monitor_connector = NULL;
+    if(res)
+        drmModeFreeResources(res);
+    res = NULL;
+    if(drm_fd > 0)
+        close(drm_fd);
+    drm_fd = -1;
+    return NULL;
 }
 
 static GRSurface* drm_flip(minui_backend* backend __unused) {
@@ -449,7 +485,9 @@ static void drm_exit(minui_backend* backend __unused) {
     drm_destroy_surface(drm_surfaces[0]);
     drm_destroy_surface(drm_surfaces[1]);
     drmModeFreeCrtc(main_monitor_crtc);
-    drmModeFreeConnector(main_monitor_connector);
+    if(main_monitor_connector)
+        drmModeFreeConnector(main_monitor_connector);
+    main_monitor_connector = NULL;
     close(drm_fd);
     drm_fd = -1;
 }

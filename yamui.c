@@ -287,7 +287,7 @@ main(int argc, char *argv[])
         printf("real v-shift is %lld pixels\n", v_shift);
     }
 
-    get_ms_time_run();
+    get_ms_time_run(); //RAF: 0.366s are spent in initialisation
 
 	/* Allow SIGTERM and SIGINT to interrupt pselect() and move to cleanup */
 	sigemptyset(&mask);
