@@ -123,9 +123,6 @@ osUpdateScreenShowProgress(int percentage)
 	y1 = fbh / 2 + MARGIN;
 	x2 = MARGIN + splitpoint;
 	y2 = fbh / 2 + 20;
-	
-	y1 += v_shift;
-	y2 += v_shift;
 
 	/* white color for the beginning of the progressbar */
 	gr_color(255, 255, 255, 255);
