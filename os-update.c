@@ -27,7 +27,9 @@
 
 const char logo_filename[] = "test";
 
-gr_surface logo;
+extern long long int v_shift;
+
+static gr_surface logo;
 
 /* ------------------------------------------------------------------------ */
 
@@ -83,7 +85,7 @@ gr_logo(void)
     int dx = (fbw - logow) >> 1;
     int dy = (fbh - logoh) >> 1;
 
-    gr_blit(logo, 0, 0, logow, logoh, dx, dy);
+    gr_blit(logo, 0, 0, logow, logoh, dx, dy + v_shift);
 
 	return 0;
 }
@@ -121,6 +123,9 @@ osUpdateScreenShowProgress(int percentage)
 	y1 = fbh / 2 + MARGIN;
 	x2 = MARGIN + splitpoint;
 	y2 = fbh / 2 + 20;
+	
+	y1 += v_shift;
+	y2 += v_shift;
 
 	/* white color for the beginning of the progressbar */
 	gr_color(255, 255, 255, 255);

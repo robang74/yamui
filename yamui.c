@@ -50,8 +50,10 @@ static struct option options[] = {
 };
 
 static bool do_cleanup = true;
-static unsigned long long int app_font_multipl = 0;
-static unsigned long long int app_text_xpos = 0, app_text_ypos = 0;
+static long long int app_font_multipl = 0;
+static long long int app_text_xpos = 0, app_text_ypos = 0;
+
+long long int v_shift = 0;
 
 /* ------------------------------------------------------------------------ */
 
@@ -157,6 +159,8 @@ print_help(void)
 	printf("         Set the text horizontal center to x/1000 of the screen width\n");
 	printf("  --ypos=THOUSANDTHS, -y THOUSANDTHS\n");
 	printf("         Set the text vertical origin to y/1000 of the screen height\n");
+	printf("  --vshift=THOUSANDTHS, -v THOUSANDTHS\n");
+	printf("         Set the vertical shift to v/1000 of the screen height\n");
 	printf("  --skip-cleanup, -c\n");
 	printf("         Skip display cleanup at exit.\n");
 	printf("  --help, -h\n");
@@ -207,7 +211,7 @@ main(int argc, char *argv[])
 	setlinebuf(stdout);
 
 	while (1) {
-		c = getopt_long(argc, argv, "a:i:p:s:t:m:x:y:ch", options,
+		c = getopt_long(argc, argv, "a:i:p:s:t:m:x:y:v:ch", options,
 				&option_index);
 		if (c == -1)
 			break;
@@ -256,6 +260,10 @@ main(int argc, char *argv[])
             printf("got text y-pos: %s/1000\n", optarg);
             app_text_ypos = strtoull(optarg, NULL, 10);
             break;
+        case 'v':
+            printf("got v-shift: %s/1000\n", optarg);
+            v_shift = strtoll(optarg, NULL, 10);
+            break;            
 		case 'h':
 			print_help();
 			goto out;
@@ -274,6 +282,9 @@ main(int argc, char *argv[])
 
 	if (osUpdateScreenInit())
 		return -1;
+
+    if(v_shift)
+        v_shift = MIL_DIV(v_shift * gr_fb_height());
 
     get_ms_time_run();
 

@@ -165,12 +165,22 @@ char_blend(unsigned char *sx, int src_row_bytes, unsigned char *px,
 
 #define gr_flip_data_ptr(x,y) (unsigned char *)(gr_flip_ptr->data + \
         (x * gr_flip_ptr->pixel_bytes)) + (y * gr_flip_ptr->row_bytes)
+        
+#ifndef _GET_TIME_MS_H_
+#define MIL (1000ULL)
+#define INT_DIV(a, b) ( (a + (b>>1)) / b )
+#define INT_RMN(a, b) (a%b)
+#define MIL_DIV(a) INT_DIV(a, MIL)
+#define MIL_RMN(a) INT_DIV(a, MIL)
+#endif
+
+extern long long int v_shift;
 
 void
-gr_text(int x, int y, const char *s, int bold, int factor, int row)
+gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 {
 	GRFont *font = gr_font;
-	unsigned off, strw;
+	unsigned off, strw, frch, frcw, x, y;
 
 	if (!font->texture)
 		return;
@@ -178,14 +188,17 @@ gr_text(int x, int y, const char *s, int bold, int factor, int row)
 	if (gr_current_a == 0)
 		return;
 
+    frcw = font->cwidth  * factor;
+    frch = font->cheight * factor;
+
 	bold = bold && (font->texture->height != font->cheight);
 
-	strw = (font->cwidth * factor * strlen(s)) >> 1; //RAF: center the text
+	strw = (frcw * strlen(s)) >> 1; //RAF: center the text
 
-    x = (500 + (gr_draw->width  * x)) / 1000 + overscan_offset_x - strw;
-    y = (500 + (gr_draw->height * y)) / 1000 + overscan_offset_y;
-
-    y += row * factor * font->cheight;
+    x = MIL_DIV(gr_draw->width  * kx) + overscan_offset_x - strw;
+    y = MIL_DIV(gr_draw->height * ky) + overscan_offset_y - v_shift;
+    
+    y += (row * frch) - MIL_DIV(frch * ky); //RAF: progressive vertical shift
 
     x = (x < 20) ? 20 : x; //RAF: 20px this seem necessary in some screens
     y = (y < 20) ? 20 : y; //RAF: 20px this seem necessary in some screens
@@ -198,9 +211,7 @@ gr_text(int x, int y, const char *s, int bold, int factor, int row)
 
 	while ((off = *s++)) {
 		off -= 32;
-		if (outside(x, y) ||
-		    outside(x + (factor * font->cwidth)  - 1,
-		            y + (factor * font->cheight) - 1))
+		if (outside(x, y) || outside(x + frcw - 1, y + frch - 1))
 			break;
 
 		if (off < 96) {
@@ -211,7 +222,7 @@ gr_text(int x, int y, const char *s, int bold, int factor, int row)
 				   gr_flip_data_ptr(x,y), gr_draw->row_bytes, font->cwidth,
 				   font->cheight, factor);
 		}
-		x += font->cwidth * factor;
+		x += frcw;
 	}
 }
 
@@ -480,7 +491,6 @@ void gr_copy(void)
 
 int gr_init(bool blank)
 {
-
     get_ms_time_run();
 
 	gr_init_font();
