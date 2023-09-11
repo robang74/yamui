@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+#define MSTIME_TIME_ONLY
 #define MSTIME_HEADER_ONLY
 #include "get_time_ms.c"
 

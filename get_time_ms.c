@@ -44,13 +44,18 @@ lld get_time_ms(lld tms, unsigned line, const char *file);
 lld get_time_us(lld tus, unsigned line, const char *file);
 lld get_time_ns(lld tns, unsigned line, const char *file);
 
+#ifdef MSTIME_TIME_ONLY
+#define get_ms_time_run() ({ m_gettimems = get_time_ms(m_gettimems, 0, 0); })
+#define get_us_time_run() ({ u_gettimems = get_time_us(u_gettimems, 0, 0); })
+#define get_ns_time_run() ({ n_gettimems = get_time_ns(n_gettimems, 0, 0); })
+#else
 #define get_ms_time_run() ({ lld _a = m_gettimems; m_gettimems = get_time_ms(_a, __LINE__, __FILE__); })
-#define get_ms_time_now() ({ m_gettimems = get_time_ms(0, 0, NULL); })
-
 #define get_us_time_run() ({ lld _a = u_gettimems; u_gettimems = get_time_us(_a, __LINE__, __FILE__); })
-#define get_us_time_now() ({ u_gettimems = get_time_us(0, 0, NULL); })
-
 #define get_ns_time_run() ({ lld _a = n_gettimems; n_gettimems = get_time_ns(_a, __LINE__, __FILE__); })
+#endif
+
+#define get_ms_time_now() ({ m_gettimems = get_time_ms(0, 0, NULL); })
+#define get_us_time_now() ({ u_gettimems = get_time_us(0, 0, NULL); })
 #define get_ns_time_now() ({ n_gettimems = get_time_ns(0, 0, NULL); })
 
 #define MIL 1000
