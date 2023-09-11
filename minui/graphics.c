@@ -36,7 +36,8 @@
 #include "minui.h"
 #include "graphics.h"
 
-#define INCLUDE_H_ONLY
+#define MSTIME_HEADER_ONLY
+#define MSTIME_STATIC_VARS
 #include "../get_time_ms.c"
 
 typedef struct {

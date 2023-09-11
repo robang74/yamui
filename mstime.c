@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#define INCLUDE_H_ONLY
+#define MSTIME_HEADER_ONLY
 #include "get_time_ms.c"
 
 static inline int

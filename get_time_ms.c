@@ -30,9 +30,15 @@ extern "C" {
 
 typedef long long int lld;
 
-extern lld __attribute__((unused)) m_gettimems;
-extern lld __attribute__((unused)) u_gettimems;
-extern lld __attribute__((unused)) n_gettimems;
+#ifdef MSTIME_STATIC_VARS
+static __attribute__((unused)) lld m_gettimems = -1;
+static __attribute__((unused)) lld u_gettimems = -1;
+static __attribute__((unused)) lld n_gettimems = -1;
+#else
+extern lld m_gettimems;
+extern lld u_gettimems;
+extern lld n_gettimems;
+#endif
 
 lld get_time_ms(lld tms, unsigned line, const char *file);
 lld get_time_us(lld tus, unsigned line, const char *file);
@@ -67,7 +73,7 @@ lld get_time_ns(lld tns, unsigned line, const char *file);
 #endif /* __cplusplus */
 #endif /* _GET_TIME_MS_H_ */
 
-#ifndef INCLUDE_H_ONLY
+#ifndef MSTIME_HEADER_ONLY
 
 lld m_gettimems = -1;
 lld u_gettimems = -1;
@@ -169,4 +175,4 @@ lld get_time_ns(lld tns, unsigned line, const char *file)
     return sns;
 }
 
-#endif
+#endif /* MSTIME_HEADER_ONLY */

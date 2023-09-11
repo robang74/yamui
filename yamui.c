@@ -29,7 +29,8 @@
 #include "os-update.h"
 #include "minui/minui.h"
 
-#define INCLUDE_H_ONLY
+#define MSTIME_HEADER_ONLY
+#define MSTIME_STATIC_VARS
 #include "get_time_ms.c"
 
 #define IMAGES_MAX	32
@@ -44,12 +45,12 @@ static struct option options[] = {
 	{"fontmultipl", required_argument, 0, 'm'},
 	{"xpos",        required_argument, 0, 'x'},
 	{"ypos",        required_argument, 0, 'x'},
-	{"skip-cleanup",no_argument,       0, 'c'},
+	{"cleanup",     no_argument,       0, 'k'},
 	{"help",        no_argument,       0, 'h'},
 	{0, 0, 0, 0},
 };
 
-static bool do_cleanup = true;
+static bool do_cleanup = false;
 static long long int app_font_multipl = 0;
 static long long int app_text_xpos = 0, app_text_ypos = 0;
 
@@ -159,8 +160,8 @@ print_help(void)
 	printf("         Set the text vertical origin to y/1000 of the screen height\n");
 	printf("  --vshift=THOUSANDTHS, -v THOUSANDTHS\n");
 	printf("         Set the vertical shift to v/1000 of the screen height\n");
-	printf("  --skip-cleanup, -c\n");
-	printf("         Skip display cleanup at exit.\n");
+	printf("  --cleanup, -k\n");
+	printf("         Exit closing and freeing resources but the kernel does it\n");
 	printf("  --help, -h\n");
 	printf("         Print this help\n");
 	printf("\n");
@@ -209,7 +210,7 @@ main(int argc, char *argv[])
 	setlinebuf(stdout);
 
 	while (1) {
-		c = getopt_long(argc, argv, "a:i:p:s:t:m:x:y:v:ch", options,
+		c = getopt_long(argc, argv, "a:i:p:s:t:m:x:y:v:kh", options,
 				&option_index);
 		if (c == -1)
 			break;
@@ -219,9 +220,9 @@ main(int argc, char *argv[])
 			printf("got animate %s ms\n", optarg);
 			animate_ms = strtoul(optarg, (char **)NULL, 10);
 			break;
-		case 'c':
-			printf("skip display clean up\n");
-			do_cleanup = false;
+		case 'k':
+			printf("clean up resources\n");
+			do_cleanup = true;
 			break;
 		case 'i':
 			printf("got imagesdir \"%s\"\n", optarg);
