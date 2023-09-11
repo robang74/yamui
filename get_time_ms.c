@@ -17,6 +17,10 @@
 #ifndef _GET_TIME_MS_H_
 #define _GET_TIME_MS_H_
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -24,37 +28,39 @@ extern "C" {
 #include <stdio.h>
 #include <time.h>
 
-static long long int __attribute__((unused)) m_gettimems = -1;
-static long long int __attribute__((unused)) u_gettimems = -1;
-static long long int __attribute__((unused)) n_gettimems = -1;
+typedef long long int lld;
 
-long long int get_time_ms(long long int tms, unsigned line);
-long long int get_time_us(long long int tus, unsigned line);
-long long int get_time_ns(long long int tns, unsigned line);
+extern lld __attribute__((unused)) m_gettimems;
+extern lld __attribute__((unused)) u_gettimems;
+extern lld __attribute__((unused)) n_gettimems;
 
-#define get_ms_time_run() { m_gettimems = get_time_ms(m_gettimems, __LINE__); }
-#define get_ms_time_now() { m_gettimems = get_time_ms(0, 0); }
+lld get_time_ms(lld tms, unsigned line, const char *file);
+lld get_time_us(lld tus, unsigned line, const char *file);
+lld get_time_ns(lld tns, unsigned line, const char *file);
 
-#define get_us_time_run() { u_gettimems = get_time_us(u_gettimems, __LINE__); }
-#define get_us_time_now() { u_gettimems = get_time_us(0, 0); }
+#define get_ms_time_run() ({ lld _a = m_gettimems; m_gettimems = get_time_ms(_a, __LINE__, __FILE__); })
+#define get_ms_time_now() ({ m_gettimems = get_time_ms(0, 0, NULL); })
 
-#define get_ns_time_run() { n_gettimems = get_time_ns(n_gettimems, __LINE__); }
-#define get_ns_time_now() { n_gettimems = get_time_ns(0, 0); }
+#define get_us_time_run() ({ lld _a = u_gettimems; u_gettimems = get_time_us(_a, __LINE__, __FILE__); })
+#define get_us_time_now() ({ u_gettimems = get_time_us(0, 0, NULL); })
 
-#define MIL (1000ULL)
-#define MLN (1000000ULL)
-#define MLD (1000000000ULL)
+#define get_ns_time_run() ({ lld _a = n_gettimems; n_gettimems = get_time_ns(_a, __LINE__, __FILE__); })
+#define get_ns_time_now() ({ n_gettimems = get_time_ns(0, 0, NULL); })
 
-#define INT_DIV(a, b) ( (a + (b>>1)) / b )
-#define INT_RMN(a, b) (a%b)
+#define MIL 1000
+#define MLN 1000000
+#define MLD 1000000000
+
+#define INT_DIV(a, b) ({ __typeof__(a) _a = (a), _b = (b); (_a + (_b >> 1)) / _b; })
+#define INT_RMN(a, b) ({ __typeof__(a) _a = (a), _b = (b); (_a % _b); })
 
 #define MIL_DIV(a) INT_DIV(a, MIL)
 #define MLN_DIV(a) INT_DIV(a, MLN)
 #define MLD_DIV(a) INT_DIV(a, MLD)
 
-#define MIL_RMN(a) INT_DIV(a, MIL)
-#define MLN_RMN(a) INT_DIV(a, MLN)
-#define MLD_RMN(a) INT_DIV(a, MLD)
+#define MIL_RMN(a) INT_RMN(a, MIL)
+#define MLN_RMN(a) INT_RMN(a, MLN)
+#define MLD_RMN(a) INT_RMN(a, MLD)
 
 #ifdef __cplusplus
 }
@@ -63,8 +69,11 @@ long long int get_time_ns(long long int tns, unsigned line);
 
 #ifndef INCLUDE_H_ONLY
 
-long long int
-get_time_ms(long long int tms, unsigned line)
+lld m_gettimems = -1;
+lld u_gettimems = -1;
+lld n_gettimems = -1;
+
+lld get_time_ms(lld tms, unsigned line, const char *file)
 {
     long ms;
     time_t s, sms;
@@ -74,10 +83,16 @@ get_time_ms(long long int tms, unsigned line)
     s   = spec.tv_sec;
     ms  = MLN_DIV(spec.tv_nsec);
     sms = (MIL * s) + ms;
+    
+    //printf("debug> tms:%lld sms:%ld\n", tms, sms);
 
     if(1 || tms > 0) {
-        char str[32]; str[0] = 0;
-        if(line) { snprintf(str, 31, "=-> %03d: ", line); }; str[31] = 0;
+        char str[128]; str[0] = 0;
+        if(line) {
+            snprintf(str, 127, "=-> %s%s%03d: ",
+                file ? file : "", file ? ":" : "", line);
+            str[127] = 0;
+        }
         if(tms > 0) {
             tms = sms - tms;
             printf("%s+%llu.%03llu\n", str, MIL_DIV(tms), MIL_RMN(tms));
@@ -91,8 +106,7 @@ get_time_ms(long long int tms, unsigned line)
     return sms;
 }
 
-long long int
-get_time_us(long long int tus, unsigned line)
+lld get_time_us(lld tus, unsigned line, const char *file)
 {
     long us;
     time_t s, sus;
@@ -104,8 +118,12 @@ get_time_us(long long int tus, unsigned line)
     sus = (MLN * s) + us;
 
     if(1 || tus > 0) {
-        char str[32]; str[0] = 0;
-        if(line) { snprintf(str, 31, "-> %03d: ", line); }; str[31] = 0;
+        char str[128]; str[0] = 0;
+        if(line) {
+            snprintf(str, 127, "=-> %s%s%03d: ",
+                file ? file : "", file ? ":" : "", line);
+            str[127] = 0;
+        }
         if(tus > 0) {
             tus = sus - tus;
             printf("%s+%llu.%06llu\n", str, MLN_DIV(tus), MLN_RMN(tus));
@@ -119,8 +137,7 @@ get_time_us(long long int tus, unsigned line)
     return sus;
 }
 
-long long int
-get_time_ns(long long int tns, unsigned line)
+lld get_time_ns(lld tns, unsigned line, const char *file)
 {
     long ns;
     time_t s, sns;
@@ -132,8 +149,12 @@ get_time_ns(long long int tns, unsigned line)
     sns = (MLD * s) + ns;
 
     if(1 || tns > 0) {
-        char str[32]; str[0] = 0;
-        if(line) { snprintf(str, 31, "-> %03d: ", line); }; str[31] = 0;
+        char str[128]; str[0] = 0;
+        if(line) {
+            snprintf(str, 127, "=-> %s%s%03d: ",
+                file ? file : "", file ? ":" : "", line);
+            str[127] = 0;
+        }
         if(tns > 0) {
             tns = sns - tns;
             printf("%s+%llu.%09llu\n", str, MLD_DIV(tns), MLD_RMN(tns));

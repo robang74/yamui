@@ -61,6 +61,8 @@ static unsigned char gr_current_a = 255;
 
 static GRSurface *gr_draw = NULL;
 
+extern long long int v_shift;
+
 /* ------------------------------------------------------------------------ */
 
 static bool
@@ -165,16 +167,16 @@ char_blend(unsigned char *sx, int src_row_bytes, unsigned char *px,
 
 #define gr_flip_data_ptr(x,y) (unsigned char *)(gr_flip_ptr->data + \
         (x * gr_flip_ptr->pixel_bytes)) + (y * gr_flip_ptr->row_bytes)
-        
+
+/*
 #ifndef _GET_TIME_MS_H_
 #define MIL (1000ULL)
-#define INT_DIV(a, b) ( (a + (b>>1)) / b )
-#define INT_RMN(a, b) (a%b)
+#define INT_DIV(a, b) ( typeof(a)(a + (b>>1)) / b )
+#define INT_RMN(a, b) ( typeof(a)(a % b) )
 #define MIL_DIV(a) INT_DIV(a, MIL)
 #define MIL_RMN(a) INT_DIV(a, MIL)
 #endif
-
-extern long long int v_shift;
+*/
 
 void
 gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
@@ -196,7 +198,7 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 	strw = (frcw * strlen(s)) >> 1; //RAF: center the text
 
     x = MIL_DIV(gr_draw->width  * kx) + overscan_offset_x - strw;
-    y = MIL_DIV(gr_draw->height * ky) + overscan_offset_y - v_shift;
+    y = MIL_DIV(gr_draw->height * ky) + overscan_offset_y + v_shift;
     
     y += (row * frch) - MIL_DIV(frch * ky); //RAF: progressive vertical shift
 

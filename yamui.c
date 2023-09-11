@@ -122,7 +122,7 @@ get_my_basename_index(void)
 static void
 short_help(void)
 {
-	printf("\nUSAGE: %s [OPTIONS] [IMAGE(s)]\n\n", basename);
+	printf("\n  USAGE: %s [OPTIONS] [IMAGE(s)]\n\n", basename);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -131,9 +131,7 @@ static void
 print_help(void)
 {
 	printf("  yamui - tool to display progress bar, logo, or small animation on UI\n");
-	printf("\n");
 	short_help();
-    printf("\n");
 	printf("    DIR        - the folder path in which the images are searched or\n");
 	printf("                 by default /res/images\n");
 	printf("    IMAGE(s)   - images in PNG format with .png extention which file\n");
@@ -283,8 +281,10 @@ main(int argc, char *argv[])
 	if (osUpdateScreenInit())
 		return -1;
 
-    if(v_shift)
+    if(v_shift) {
         v_shift = MIL_DIV(v_shift * gr_fb_height());
+        printf("real v-shift is %lld pixels\n", v_shift);
+    }
 
     get_ms_time_run();
 
