@@ -44,14 +44,25 @@
 
 #define DISPLAY_CONTROL		"/sys/class/graphics/fb0/blank"
 #define DISPLAY_CONTROL_DRM	"/sys/class/backlight/panel0-backlight/brightness"
-#define MAX_DEVICES		256
-#define DISPLAY_OFF_TIME	25 /* seconds */
+#define MAX_DEVICES		    256
+#define DISPLAY_OFF_TIME     30 /* seconds */
+
+static const bool display_off_disabled = 1; //RAF: a user space script does
 
 const char *app_name = "screensaverd";
 sig_atomic_t volatile running = 1;
 
 char *display_control = NULL;
+int display_control_off_value = 1;
 int display_control_on_value = 1024;
+
+typedef enum {
+	state_unknown = -1,
+	state_off,
+	state_on
+} display_state_t;
+
+static display_state_t display_state = state_unknown;
 
 /* ------------------------------------------------------------------------ */
 
@@ -116,14 +127,6 @@ sysfs_write_int(const char *fname, int val)
 
 /* ------------------------------------------------------------------------ */
 
-typedef enum {
-	state_unknown = -1,
-	state_off,
-	state_on
-} display_state_t;
-
-static display_state_t display_state = state_unknown;
-
 static int
 turn_display_on(void)
 {
@@ -146,7 +149,7 @@ turn_display_on(void)
 static int
 turn_display_off(void)
 {
-	if (display_state == state_off)
+	if (display_off_disabled || display_state == state_off)
 		return 0;
 
 	printf("Turning display off.\n");
@@ -154,7 +157,7 @@ turn_display_off(void)
 #ifdef __arm__
 	gr_save(); /* Qualcomm specific. TODO: implement generic solution. */
 #endif /* __arm__ */
-	return sysfs_write_int(display_control, 0);
+	return sysfs_write_int(display_control, display_control_off_value);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -190,17 +193,18 @@ main(void)
 #endif /* __arm__ */
 	}
 #endif
-
+	
 	if (have_fb0) {
+		printf("framebuffer found, using it.");
 		display_control = DISPLAY_CONTROL;
 	} else {
+		printf("framebuffer not found, using drm.");
 		display_control = DISPLAY_CONTROL_DRM;
 	}
 
 	if (getenv("DISPLAY_BRIGHTNESS_PATH") != NULL) {
 		display_control = getenv("DISPLAY_BRIGHTNESS_PATH");
 	}
-
 	if (getenv("DISPLAY_BRIGHTNESS") != NULL) {
 		display_control_on_value = atoi(getenv("DISPLAY_BRIGHTNESS"));
 	}
@@ -224,7 +228,6 @@ main(void)
 				max_fd = fds[i];
 		}
 
-		/* Wait up to 25 seconds. */
 		tv.tv_sec  = DISPLAY_OFF_TIME;
 		tv.tv_usec = 0;
 
