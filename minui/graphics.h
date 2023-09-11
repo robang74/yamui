@@ -25,6 +25,9 @@ extern "C" {
 
 #include "minui.h"
 
+#define ABSOLUTE_DISPLAY_MARGIN_X 20
+#define ABSOLUTE_DISPLAY_MARGIN_Y 20
+
 typedef struct minui_backend {
 	/* Initializes the backend and returns a gr_surface to draw into. */
 	gr_surface (*init)(struct minui_backend *backend, bool blank);

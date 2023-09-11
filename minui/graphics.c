@@ -203,8 +203,8 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
     
     y += (row * frch) - MIL_DIV(frch * ky); //RAF: progressive vertical shift
 
-    x = (x < 20) ? 20 : x; //RAF: 20px this seem necessary in some screens
-    y = (y < 20) ? 20 : y; //RAF: 20px this seem necessary in some screens
+    x = (x < ABSOLUTE_DISPLAY_MARGIN_X) ? ABSOLUTE_DISPLAY_MARGIN_X : x;
+    y = (y < ABSOLUTE_DISPLAY_MARGIN_X) ? ABSOLUTE_DISPLAY_MARGIN_X : y;
 
 	printf("gr_draw -> width: %d, height: %d, off: %d.%d, pos: %d.%d\n",
 	    gr_draw->width, gr_draw->height,overscan_offset_x, overscan_offset_y,
