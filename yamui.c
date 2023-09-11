@@ -29,7 +29,11 @@
 #include "os-update.h"
 #include "minui/minui.h"
 
-#define IMAGES_MAX	30
+#define INCLUDE_H_ONLY
+#include "get_time_ms.c"
+
+#define IMAGES_MAX	32
+#define TXTRWS_MAX  32
 
 static struct option options[] = {
 	{"animate",     required_argument, 0, 'a'},
@@ -48,10 +52,6 @@ static struct option options[] = {
 static bool do_cleanup = true;
 static unsigned long long int app_font_multipl = 0;
 static unsigned long long int app_text_xpos = 0, app_text_ypos = 0;
-
-static long long unsigned a = -1;
-#define get_time_ms(a) _get_time_ms(a, __LINE__)
-long long unsigned _get_time_ms(long long int tms, int line);
 
 /* ------------------------------------------------------------------------ */
 
@@ -84,21 +84,43 @@ _wait_signalfd(int sigfd, unsigned long long int msecs)
 static int
 wait_signalfd(int sigfd, unsigned long long int msecs)
 {
-    (void)sigfd;
+    if(!msecs)
+        return _wait_signalfd(sigfd, msecs);
+
     int ret = usleep(msecs * 1000);
     if (ret > 0)
         printf("Interrupted, bailing out\n");
     else if (ret < 0)
         printf("An error occured, errno(%d): %s\n", errno, strerror(errno));
+
     return ret;
 }
 
 /* ------------------------------------------------------------------------ */
 
+#define basename (argv_ptr[get_my_basename_index()])
+
+static char **argv_ptr = NULL;
+
+static inline int
+get_my_basename_index(void)
+{
+    static int i, n = -1;
+    if(!argv_ptr)
+        return -1;
+    if (n >= 0)
+        return n;
+    char *path = argv_ptr[0];
+    for(i = 0; path[i]; i++)
+        if(path[i] == '/')
+            n = i;
+    return ++n;
+}
+
 static void
 short_help(void)
 {
-	printf("USAGE: yamui [OPTIONS] [IMAGE(s)]\n");
+	printf("\nUSAGE: %s [OPTIONS] [IMAGE(s)]\n\n", basename);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -107,12 +129,18 @@ static void
 print_help(void)
 {
 	printf("  yamui - tool to display progress bar, logo, or small animation on UI\n");
-	printf("  Usage:\n");
+	printf("\n");
 	short_help();
-	printf("    IMAGE(s)   - png picture file names in DIR without .png extension\n");
-	printf("                 NOTE: currently maximum of %d pictures supported\n",
-	       IMAGES_MAX);
-	printf("\n  OPTIONS:\n");
+    printf("\n");
+	printf("    DIR        - the folder path in which the images are searched or\n");
+	printf("                 by default /res/images\n");
+	printf("    IMAGE(s)   - images in PNG format with .png extention which file\n");
+	printf("                 names can be found in DIR without the .png extension.\n");
+	printf("                 The maximum of %d pictures is supported.\n", IMAGES_MAX);
+	printf("    STRING(s)  - text strings composed by printable chars, %d max rows\n", TXTRWS_MAX);
+	printf("\n");
+	printf("    OPTIONS:\n");
+	printf("\n");
 	printf("  --animate=PERIOD, -a PERIOD\n");
 	printf("         Show IMAGEs (at least 2) in rotation over PERIOD ms\n");
 	printf("  --imagesdir=DIR, -i DIR\n");
@@ -122,7 +150,7 @@ print_help(void)
 	printf("  --stopafter=TIME, -s TIME\n");
 	printf("         Stop showing the IMAGE(s) after TIME milliseconds\n");
 	printf("  --text=STRING, -t STRING\n");
-	printf("         Show STRING on the screen\n");
+	printf("         Show STRING on the screen, multiple times for each row\n");
 	printf("  --fontmultipl=FACTOR, -m FACTOR\n");
 	printf("         Increase the font size by a factor between 1 and 16\n");
 	printf("  --xpos=THOUSANDTHS, -x THOUSANDTHS\n");
@@ -133,20 +161,24 @@ print_help(void)
 	printf("         Skip display cleanup at exit.\n");
 	printf("  --help, -h\n");
 	printf("         Print this help\n");
+	printf("\n");
 }
 
 /* ------------------------------------------------------------------------ */
 
 /* Add text to both sides of the "flip" */
 static void
-add_text(char *text)
+add_text(char **text, int count)
 {
-	if (!text)
+	if (!text || !count)
 		return;
 
 	gr_color(255, 255, 255, 255);
-	gr_text(app_text_xpos, app_text_ypos, text, 1, app_font_multipl);
-	gr_copy();
+
+	for(int i = 0; i < count; i++)
+	    gr_text(app_text_xpos, app_text_ypos, text[i], 1, app_font_multipl, i);
+
+//	gr_copy();
 	gr_flip();
 }
 
@@ -159,16 +191,18 @@ main(int argc, char *argv[])
 	unsigned long int animate_ms = 0;
 	unsigned long long int stop_ms = 0;
 	unsigned long long int progress_ms = 0;
-	char * text = NULL;
+	char * text[512];
 	char * images[IMAGES_MAX];
 	char * images_dir = "/res/images";
-	int image_count = 0;
+	int image_count = 0, text_count = 0;
 	int ret = 0;
 	int i = 0;
 	int sigfd = -1;
 	sigset_t mask;
-	
-	a = get_time_ms(a);
+
+	argv_ptr = argv;
+
+	get_ms_time_run();
 
 	setlinebuf(stdout);
 
@@ -200,16 +234,15 @@ main(int argc, char *argv[])
 			stop_ms = strtoull(optarg, (char **)NULL, 10);
 			break;
 		case 't':
-			printf("got text \"%s\" to display\n", optarg);
+			printf("got text[%d] '%s' to display\n", text_count, optarg);
             if (!app_font_multipl)
                 app_font_multipl = 1;
             else
             if (app_font_multipl > 16) {
                 printf("The font multiplier is out of range");
-                print_help();
-                exit(EXIT_FAILURE);
+                app_font_multipl = 16;
             }
-			text = optarg;
+			text[text_count++] = optarg;
 			break;
         case 'm':
             printf("got font %s multipier\n", optarg);
@@ -228,28 +261,26 @@ main(int argc, char *argv[])
 			goto out;
 			break;
 		default:
-			printf("getopt returned character code 0%o\n", c);
-			short_help();
-			goto out;
+			printf("getopt returned character code 0x%02x, ignored\n", c);
 			break;
 		}
 	}
 
 	while (optind < argc && image_count < IMAGES_MAX)
 		images[image_count++] = argv[optind++];
-	printf("got %d image(s)\n", image_count);
+	printf("got %d image(s) to display\n", image_count);
 
-	a = get_time_ms(a);
+	get_ms_time_run();
 
 	if (osUpdateScreenInit())
 		return -1;
 
-    a = get_time_ms(a);
+    get_ms_time_run();
 
 	/* Allow SIGTERM and SIGINT to interrupt pselect() and move to cleanup */
 	sigemptyset(&mask);
-	sigaddset(&mask, SIGTERM);
 	sigaddset(&mask, SIGINT);
+    sigaddset(&mask, SIGTERM);
 	sigfd = signalfd(-1, &mask, 0);
 	if (sigfd == -1) {
 		printf("Could not create signal fd\n");
@@ -260,15 +291,16 @@ main(int argc, char *argv[])
 		goto cleanup; //RAF, TODO: it can be return -1 here
 	}
 
-	a = get_time_ms(a);
+	get_ms_time_run();
 
 	/* In case there is text to add, add it to both sides of the "flip" */
-	if(text) add_text(text);
+	if(text_count)
+	    add_text(text, text_count);
 
-	a = get_time_ms(a);
+	get_ms_time_run();
 
 	if (animate_ms) {
-	    a = get_time_ms(a);
+	    get_ms_time_run();
 
 		bool never_stop;
 		long int time_left = stop_ms;
@@ -296,7 +328,7 @@ main(int argc, char *argv[])
 		goto cleanup;
 	} else
 	if (progress_ms) {
-	    a = get_time_ms(a);
+	    get_ms_time_run();
 
         if (image_count > 1 && progress_ms)
             printf("Can only show one image with progressbar\n");
@@ -339,7 +371,7 @@ main(int argc, char *argv[])
         goto cleanup;
 	} else
 	if (image_count) {
-	    a = get_time_ms(a);
+	    get_ms_time_run();
 
 		if(loadLogo(images[0], images_dir))
 			printf("Image \"%s\" not found in /res/images/\n", images[0]);
@@ -350,9 +382,8 @@ main(int argc, char *argv[])
 		goto cleanup;
 	}
 	
-	if (text) {
-		if(stop_ms)
-		    wait_signalfd(sigfd, stop_ms);
+	if (text_count) {
+		wait_signalfd(sigfd, stop_ms);
 		goto cleanup;
 	} else {
         if (app_font_multipl) {
@@ -364,7 +395,7 @@ main(int argc, char *argv[])
     }
 
 cleanup:
-    a = get_time_ms(a);
+    get_ms_time_run();
 	if (sigfd != -1)
 		close(sigfd);
 	if (do_cleanup)

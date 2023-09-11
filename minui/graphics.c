@@ -36,6 +36,9 @@
 #include "minui.h"
 #include "graphics.h"
 
+#define INCLUDE_H_ONLY
+#include "../get_time_ms.c"
+
 typedef struct {
 	GRSurface *texture;
 	int cwidth;
@@ -57,10 +60,6 @@ static unsigned char gr_current_b = 255;
 static unsigned char gr_current_a = 255;
 
 static GRSurface *gr_draw = NULL;
-
-static long long unsigned a = -1;
-#define get_time_ms(a) _get_time_ms(a, __LINE__)
-long long unsigned _get_time_ms(long long int tms, int line);
 
 /* ------------------------------------------------------------------------ */
 
@@ -94,8 +93,8 @@ void gr_font_size(int *x, int *y)
 	((unsigned)sx * (255 - a)) + ((unsigned)bg * a) ) / 255 )
 
 static void
-text_blend(unsigned char *sx, int src_row_bytes, unsigned char *px,
-	                int dst_row_bytes, int width, int height, int factor)
+char_blend(unsigned char *sx, int src_row_bytes, unsigned char *px,
+    unsigned char *bx, int dst_row_bytes, int width, int height, int factor)
 {
 	int i, j, l, k, z;
 	unsigned char a;
@@ -131,7 +130,10 @@ text_blend(unsigned char *sx, int src_row_bytes, unsigned char *px,
                         px[z+0] = gr_current_r;
                         px[z+1] = gr_current_g;
                         px[z+2] = gr_current_b;
-                        //px[3] = a;
+                        if(!bx) continue;
+                        bx[z+0] = px[z+0];
+                        bx[z+1] = px[z+1];
+                        bx[z+2] = px[z+2];
                     } else
                     if (a > 0)
                     {
@@ -139,11 +141,15 @@ text_blend(unsigned char *sx, int src_row_bytes, unsigned char *px,
                         px[z+0] = alpha_apply(px[z+0], gr_current_r, a);
                         px[z+1] = alpha_apply(px[z+1], gr_current_g, a);
                         px[z+2] = alpha_apply(px[z+2], gr_current_b, a);
-                        //px[3] = a;
+                        if(!bx) continue;
+                        bx[z+0] = px[z+0];
+                        bx[z+1] = px[z+1];
+                        bx[z+2] = px[z+2];
                     }
                 }
             }
             px+=dst_row_bytes;
+            if(bx) bx+=dst_row_bytes;
         }
         sx+=src_row_bytes;
     }
@@ -153,11 +159,15 @@ text_blend(unsigned char *sx, int src_row_bytes, unsigned char *px,
 
 // RAF: (x,y) is the coordinates at which it starts to render the text
 //      the following macro can be useful somewhere else (TODO)
+
 #define gr_draw_data_ptr(x,y) (unsigned char *)(gr_draw->data + \
         (x * gr_draw->pixel_bytes)) + (y * gr_draw->row_bytes)
 
+#define gr_flip_data_ptr(x,y) (unsigned char *)(gr_flip_ptr->data + \
+        (x * gr_flip_ptr->pixel_bytes)) + (y * gr_flip_ptr->row_bytes)
+
 void
-gr_text(int x, int y, const char *s, int bold, int factor)
+gr_text(int x, int y, const char *s, int bold, int factor, int row)
 {
 	GRFont *font = gr_font;
 	unsigned off, strw;
@@ -175,12 +185,16 @@ gr_text(int x, int y, const char *s, int bold, int factor)
     x = (500 + (gr_draw->width  * x)) / 1000 + overscan_offset_x - strw;
     y = (500 + (gr_draw->height * y)) / 1000 + overscan_offset_y;
 
+    y += row * factor * font->cheight;
+
     x = (x < 20) ? 20 : x; //RAF: 20px this seem necessary in some screens
     y = (y < 20) ? 20 : y; //RAF: 20px this seem necessary in some screens
 
 	printf("gr_draw -> width: %d, height: %d, off: %d.%d, pos: %d.%d\n",
 	    gr_draw->width, gr_draw->height,overscan_offset_x, overscan_offset_y,
 	    x, y);
+
+    GRSurface *gr_flip_ptr = gr_flip(); gr_flip();
 
 	while ((off = *s++)) {
 		off -= 32;
@@ -193,8 +207,9 @@ gr_text(int x, int y, const char *s, int bold, int factor)
 			unsigned char *src_p = font->texture->data + (off * font->cwidth) +
 				(bold ? font->cheight * font->texture->row_bytes : 0);
 
-			text_blend(src_p, font->texture->row_bytes, gr_draw_data_ptr(x, y),
-				   gr_draw->row_bytes, font->cwidth, font->cheight, factor);
+			char_blend(src_p, font->texture->row_bytes, gr_draw_data_ptr(x, y),
+				   gr_flip_data_ptr(x,y), gr_draw->row_bytes, font->cwidth,
+				   font->cheight, factor);
 		}
 		x += font->cwidth * factor;
 	}
@@ -226,7 +241,7 @@ gr_texticon(int x, int y, GRSurface *icon)
 	dst_p = gr_draw->data + y * gr_draw->row_bytes +
 				x * gr_draw->pixel_bytes;
 
-	text_blend(src_p, icon->row_bytes, dst_p, gr_draw->row_bytes,
+	char_blend(src_p, icon->row_bytes, dst_p, NULL, gr_draw->row_bytes,
 		   icon->width, icon->height, 1);
 }
 
@@ -393,7 +408,7 @@ gr_init_font(void)
 	int res;
 	static const char font_path[] = "/res/images/font.png";
 	
-	a = get_time_ms(a);
+	get_ms_time_run();
 
 	/* TODO: Check for error */
 	gr_font = calloc(sizeof(*gr_font), 1);
@@ -416,7 +431,7 @@ gr_init_font(void)
 		printf("%s: failed to read font: res=%d\n", font_path, res);
 	}
 	
-	a = get_time_ms(a);
+	get_ms_time_run();
 
 	if (!font_loaded) {
 		unsigned char *bits, data, *in = font.rundata;
@@ -429,7 +444,7 @@ gr_init_font(void)
 		gr_font->texture->row_bytes = font.width;
 		gr_font->texture->pixel_bytes = 1;
 		
-	    a = get_time_ms(a);
+	    get_ms_time_run();
 
 		/* TODO: Check for error */
 		bits = malloc(font.width * font.height);
@@ -443,20 +458,19 @@ gr_init_font(void)
 		gr_font->cwidth = font.cwidth;
 		gr_font->cheight = font.cheight;
 
-		a = get_time_ms(a);
+		get_ms_time_run();
 	}
 }
 
 /* ------------------------------------------------------------------------ */
 
-void
-gr_flip(void)
+GRSurface *gr_flip(void)
 {
 	gr_draw = gr_backend->flip(gr_backend);
+	return gr_draw;
 }
 
-void
-gr_copy(void)
+void gr_copy(void)
 {
     memcpy(((GRSurface *)gr_backend->flip(gr_backend))->data, gr_draw->data,
         gr_draw->width * gr_draw->height << 2);
@@ -464,15 +478,14 @@ gr_copy(void)
 
 /* ------------------------------------------------------------------------ */
 
-int
-gr_init(bool blank)
+int gr_init(bool blank)
 {
 
-    a = get_time_ms(a);
+    get_ms_time_run();
 
 	gr_init_font();
 
-    a = get_time_ms(a);
+    get_ms_time_run();
 
 	if ((gr_vt_fd = open("/dev/tty0", O_RDWR | O_SYNC)) < 0) {
 		/* This is non-fatal; post-Cupcake kernels don't have tty0. */
@@ -485,36 +498,28 @@ gr_init(bool blank)
 		return -1;
 	}
 
-	a = get_time_ms(a);
-/*
-	gr_backend = open_adf();
-	if (gr_backend) {
-		gr_draw = gr_backend->init(gr_backend, blank);
-		if (!gr_draw)
-			gr_backend->exit(gr_backend);
-	}
-
-	if (!gr_draw) {
-*/
-	gr_backend = open_fbdev();
+	get_ms_time_run();
+#if 0
+    if(!gr_backend)
+	    gr_backend = open_adf();
+#endif
+	if(!gr_backend)
+	    gr_backend = open_drm();
+	if(!gr_backend)
+	    gr_backend = open_fbdev();
+	if(!gr_backend)
+	    return -1;
+	    
+	get_ms_time_run();
+	
 	gr_draw = gr_backend->init(gr_backend, blank);
 	if (!gr_draw) {
 		gr_backend->exit(gr_backend);
-
-		gr_backend = open_drm();
-		gr_draw = gr_backend->init(gr_backend, blank);
-		gr_backend->exit(gr_backend);
-
-		gr_backend = open_drm();
-		gr_draw = gr_backend->init(gr_backend, blank);
-		if (!gr_draw)
-			return -1;
+        return -1;
 	}
 
-	a = get_time_ms(a);
-/*
-	}
-*/
+	get_ms_time_run();
+
 	gr_flip();
 	if (!gr_draw)
 		return -1;
@@ -525,7 +530,7 @@ gr_init(bool blank)
 	overscan_offset_x = gr_draw->width  * overscan_percent / 100;
 	overscan_offset_y = gr_draw->height * overscan_percent / 100;
 
-	a = get_time_ms(a);
+	get_ms_time_run();
 
 	return 0;
 }
