@@ -79,6 +79,9 @@ lld m_gettimems = -1;
 lld u_gettimems = -1;
 lld n_gettimems = -1;
 
+#define debug 0
+#define BUFSIZE 128
+
 lld get_time_ms(lld tms, unsigned line, const char *file)
 {
     long ms;
@@ -90,19 +93,21 @@ lld get_time_ms(lld tms, unsigned line, const char *file)
     ms  = MLN_DIV(spec.tv_nsec);
     sms = (MIL * s) + ms;
     
-    //printf("debug> tms:%lld sms:%ld\n", tms, sms);
+    if(debug)
+        printf("debug> tms:%lld sms:%ld\n", tms, sms);
 
-    if(1 || tms > 0) {
-        char str[128]; str[0] = 0;
+    if(debug || tms > 0) {
+        char str[BUFSIZE]; str[0] = 0;
         if(line) {
-            snprintf(str, 127, "=-> %s%s%03d: ",
+            snprintf(str, BUFSIZE, "=-> %s%s%03d: ",
                 file ? file : "", file ? ":" : "", line);
-            str[127] = 0;
+            str[BUFSIZE-1] = 0;
         }
         if(tms > 0) {
             tms = sms - tms;
             printf("%s+%llu.%03llu\n", str, MIL_DIV(tms), MIL_RMN(tms));
-        } else {
+        } else
+        if(debug) {
             printf("%s=%ld.%03ld\n", str, s, ms);
         }
     } else
@@ -123,19 +128,15 @@ lld get_time_us(lld tus, unsigned line, const char *file)
     us  = MIL_DIV(spec.tv_nsec);
     sus = (MLN * s) + us;
 
-    if(1 || tus > 0) {
-        char str[128]; str[0] = 0;
+    if(tus > 0) {
+        char str[BUFSIZE]; str[0] = 0;
         if(line) {
-            snprintf(str, 127, "=-> %s%s%03d: ",
+            snprintf(str, BUFSIZE, "=-> %s%s%03d: ",
                 file ? file : "", file ? ":" : "", line);
-            str[127] = 0;
+            str[BUFSIZE-1] = 0;
         }
-        if(tus > 0) {
-            tus = sus - tus;
-            printf("%s+%llu.%06llu\n", str, MLN_DIV(tus), MLN_RMN(tus));
-        } else {
-            printf("%s=%ld.%06ld\n", str, s, us);
-        }
+        tus = sus - tus;
+        printf("%s+%llu.%06llu\n", str, MLN_DIV(tus), MLN_RMN(tus));
     } else
     if(!tus)
         printf("%ld.%06ld\n", s, us);
@@ -154,19 +155,15 @@ lld get_time_ns(lld tns, unsigned line, const char *file)
     ns  = spec.tv_nsec;
     sns = (MLD * s) + ns;
 
-    if(1 || tns > 0) {
-        char str[128]; str[0] = 0;
+    if(tns > 0) {
+        char str[BUFSIZE]; str[0] = 0;
         if(line) {
-            snprintf(str, 127, "=-> %s%s%03d: ",
+            snprintf(str, BUFSIZE, "=-> %s%s%03d: ",
                 file ? file : "", file ? ":" : "", line);
-            str[127] = 0;
+            str[BUFSIZE-1] = 0;
         }
-        if(tns > 0) {
-            tns = sns - tns;
-            printf("%s+%llu.%09llu\n", str, MLD_DIV(tns), MLD_RMN(tns));
-        } else {
-            printf("%s=%ld.%09ld\n", str, s, ns);
-        }
+        tns = sns - tns;
+        printf("%s+%llu.%09llu\n", str, MLD_DIV(tns), MLD_RMN(tns));
     } else {
         if(!tns) printf("%ld.%09ld\n", s, ns);
         s = (MLD * s) + ns;
