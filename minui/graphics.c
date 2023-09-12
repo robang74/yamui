@@ -183,7 +183,7 @@ void
 gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 {
 	GRFont *font = gr_font;
-	int off, strw, frch, frcw, x, y;
+	int off, frch, frcw, x, y, strw = 0;
 
 	if (!font->texture)
 		return;
@@ -195,8 +195,11 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
     frch = font->cheight * factor;
 
 	bold = bold && (font->texture->height != font->cheight);
-
-	strw = (frcw * strlen(s)) >> 1; //RAF: center the text
+	
+	if(kx < 0)
+	    kx = -kx;
+	else
+	    strw = (frcw * strlen(s)) >> 1; //RAF: center the text
 
     x = MIL_DIV(gr_draw->width  * kx) + overscan_offset_x - strw;
     y = MIL_DIV(gr_draw->height * ky) + overscan_offset_y + v_shift;
