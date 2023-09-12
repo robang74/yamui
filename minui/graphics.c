@@ -210,7 +210,8 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 	    gr_draw->width, gr_draw->height,overscan_offset_x, overscan_offset_y,
 	    x, y);
 
-    GRSurface *gr_flip_ptr = gr_flip(); gr_flip();
+    //GRSurface *gr_flip_ptr = gr_flip(); //gr_flip();
+    GRSurface *gr_flip_ptr = gr_flip_n_copy();
 
 	while ((off = *s++)) {
 		off -= 32;
@@ -480,14 +481,16 @@ gr_init_font(void)
 
 GRSurface *gr_flip(void)
 {
-	gr_draw = gr_backend->flip(gr_backend);
-	return gr_draw;
+    GRSurface *srf_ptr = gr_draw;
+    gr_draw = gr_backend->flip(gr_backend);
+    return srf_ptr;
 }
 
-void gr_copy(void)
+GRSurface *gr_flip_n_copy(void)
 {
-    memcpy(((GRSurface *)gr_backend->flip(gr_backend))->data, gr_draw->data,
-        gr_draw->width * gr_draw->height << 2);
+    GRSurface *srf_ptr = gr_flip();
+    memcpy(srf_ptr->data, gr_draw->data, gr_draw->width * gr_draw->height << 2);
+	return srf_ptr;
 }
 
 /* ------------------------------------------------------------------------ */
