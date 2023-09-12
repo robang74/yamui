@@ -177,8 +177,6 @@ add_text(char **text, int count)
 	if (!text || !count)
 		return;
 
-	gr_color(255, 255, 255, 255);
-
 	for(int i = 0; i < count; i++)
 	    gr_text(app_text_xpos, app_text_ypos, text[i], 1, app_font_multipl, i);
 
@@ -305,6 +303,8 @@ main(int argc, char *argv[])
 	}
 
 	get_ms_time_run();
+	
+	gr_color(255, 255, 255, 255);
 
 	/* In case there is text to add, add it to both sides of the "flip" */
 	if(text_count && (animate_ms || progress_ms))

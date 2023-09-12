@@ -44,9 +44,9 @@ int  gr_fb_width(void);
 int  gr_fb_height(void);
 
 int  gr_logo(void);
-void gr_copy(void);
 void gr_fb_blank(bool blank);
 
+GRSurface *gr_flip_n_copy(void);
 GRSurface *gr_flip(void);
 
 void gr_clear(void); /* clear entire surface to current color */
