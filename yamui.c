@@ -307,7 +307,7 @@ main(int argc, char *argv[])
 	get_ms_time_run();
 
 	/* In case there is text to add, add it to both sides of the "flip" */
-	if(text_count)
+	if(text_count && (animate_ms || progress_ms))
 	    add_text(text, text_count);
 
 	get_ms_time_run();
@@ -395,14 +395,17 @@ main(int argc, char *argv[])
 			printf("Image \"%s\" not found in /res/images/\n", images[0]);
         else
 		    showLogo();
-		    
-		get_ms_time_run();
-
-		wait_signalfd(sigfd, stop_ms);
-		goto cleanup;
 	}
-	
-	if (text_count) {
+
+	get_ms_time_run();
+
+	/* In case there is text to add, add it to both sides of the "flip" */
+	if(text_count)
+	    add_text(text, text_count);
+
+	get_ms_time_run();
+
+	if (text_count || image_count) {
 		wait_signalfd(sigfd, stop_ms);
 		goto cleanup;
 	} else {
