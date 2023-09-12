@@ -183,7 +183,7 @@ void
 gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 {
 	GRFont *font = gr_font;
-	unsigned off, strw, frch, frcw, x, y;
+	int off, strw, frch, frcw, x, y;
 
 	if (!font->texture)
 		return;
@@ -204,11 +204,11 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
     y += (row * frch) - MIL_DIV(frch * ky); //RAF: progressive vertical shift
 
     x = (x < ABSOLUTE_DISPLAY_MARGIN_X) ? ABSOLUTE_DISPLAY_MARGIN_X : x;
-    y = (y < ABSOLUTE_DISPLAY_MARGIN_X) ? ABSOLUTE_DISPLAY_MARGIN_X : y;
+    y = (y < ABSOLUTE_DISPLAY_MARGIN_Y) ? ABSOLUTE_DISPLAY_MARGIN_Y : y;
 
-	printf("gr_draw -> width: %d, height: %d, off: %d.%d, pos: %d.%d\n",
-	    gr_draw->width, gr_draw->height,overscan_offset_x, overscan_offset_y,
-	    x, y);
+	printf("gr_text -> mpl: %d, fnt: %d.%d, off: %d.%d, kxy: %d.%d, pos: %d.%d\n",
+	    factor, font->cwidth, font->cheight, overscan_offset_x,
+	    overscan_offset_y, kx, ky, x, y);
 
     GRSurface *gr_flip_ptr = gr_flip(); gr_flip();
 
