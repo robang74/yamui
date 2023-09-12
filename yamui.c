@@ -276,7 +276,19 @@ main(int argc, char *argv[])
 
 	while (optind < argc && image_count < IMAGES_MAX)
 		images[image_count++] = argv[optind++];
-	printf("got %d image(s) to display\n", image_count);
+
+    if(image_count) {
+	    printf("got %d image(s) to display\n", image_count);
+	    if (animate_ms && image_count < 2)
+		    printf("Animating requires at least 2 images\n");
+    }
+
+    if(text_count) {
+        if (app_font_multipl)
+            printf("The font multiplier will be ingored without text");
+        if (app_text_xpos || app_text_ypos)
+            printf("The x-pos and y-pos will be ingored without text");
+    }
 
 	get_ms_time_run();
 
@@ -307,24 +319,19 @@ main(int argc, char *argv[])
 	get_ms_time_run();
 
 	/* In case there is text to add, add it to both sides of the "flip" */
-	if(text_count)
+	if(text_count && (animate_ms || progress_ms))
 	    add_text(text, text_count);
 
 	get_ms_time_run();
 
-	if (animate_ms) {
+	if (animate_ms && image_count > 1) {
 		bool never_stop = !stop_ms;
 		long int time_left = stop_ms;
 		int period = animate_ms / image_count;
 
-		if (image_count < 2) {
-			printf("Animating requires at least 2 images\n");
-		}
-
 		get_ms_time_run();
 
 		i = 0;
-		never_stop = !stop_ms;
 		while (never_stop || time_left > 0) {	        
 			if(loadLogo(images[i], images_dir))
 				printf("\"%s\" not found in /res/images/\n", images[i]);
@@ -395,24 +402,19 @@ main(int argc, char *argv[])
 			printf("Image \"%s\" not found in /res/images/\n", images[0]);
         else
 		    showLogo();
-		    
-		get_ms_time_run();
-
-		wait_signalfd(sigfd, stop_ms);
-		goto cleanup;
 	}
-	
-	if (text_count) {
-		wait_signalfd(sigfd, stop_ms);
-		goto cleanup;
-	} else {
-        if (app_font_multipl) {
-            printf("The font multiplier will be ingored without text");
-        }
-        if (app_text_xpos || app_text_ypos) {
-            printf("The x-pos and y-pos will be ingored without text");
-        }
-    }
+
+	get_ms_time_run();
+
+	/* In case there is text to add, add it to both sides of the "flip" */
+	if(text_count)
+	    add_text(text, text_count);
+
+	get_ms_time_run();
+
+	wait_signalfd(sigfd, stop_ms);
+
+	get_ms_time_run();
 
 cleanup:
     if (!do_cleanup)
