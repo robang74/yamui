@@ -163,8 +163,8 @@ char_blend(unsigned char *sx, int src_row_bytes, unsigned char *px,
 // RAF: (x,y) is the coordinates at which it starts to render the text
 //      the following macro can be useful somewhere else (TODO)
 
-#define gr_draw_data_ptr(x,y) (unsigned char *)(gr_draw->data + \
-        (x * gr_draw->pixel_bytes)) + (y * gr_draw->row_bytes)
+#define gr_draw_data_ptr(x,y) (unsigned char *)(gr_draw_ptr->data + \
+        (x * gr_draw_ptr->pixel_bytes)) + (y * gr_draw_ptr->row_bytes)
 
 #define gr_flip_data_ptr(x,y) (unsigned char *)(gr_flip_ptr->data + \
         (x * gr_flip_ptr->pixel_bytes)) + (y * gr_flip_ptr->row_bytes)
@@ -213,8 +213,11 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 	    factor, font->cwidth, font->cheight, overscan_offset_x,
 	    overscan_offset_y, kx, ky, x, y);
 
-    //GRSurface *gr_flip_ptr = gr_flip(); //gr_flip();
-    GRSurface *gr_flip_ptr = gr_flip_n_copy();
+    static GRSurface *gr_draw_ptr = NULL, *gr_flip_ptr = NULL;
+    if(!gr_flip_ptr || !gr_draw_ptr) {
+        gr_flip_ptr = gr_flip_n_copy();
+        gr_draw_ptr = gr_draw;
+    }
 
 	while ((off = *s++)) {
 		off -= 32;
@@ -226,7 +229,7 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 				(bold ? font->cheight * font->texture->row_bytes : 0);
 
 			char_blend(src_p, font->texture->row_bytes, gr_draw_data_ptr(x, y),
-				   gr_flip_data_ptr(x,y), gr_draw->row_bytes, font->cwidth,
+				   gr_flip_data_ptr(x,y), gr_draw_ptr->row_bytes, font->cwidth,
 				   font->cheight, factor);
 		}
 		x += frcw;
