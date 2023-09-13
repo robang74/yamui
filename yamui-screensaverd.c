@@ -135,9 +135,11 @@ turn_display_on(void)
 	debugf("Turning display on.");
 	display_state = state_on;
 	ret = sysfs_write_int(display_control, display_control_on_value);
+#if 0
 #ifdef __arm___
 	gr_restore(); /* Qualcomm specific. TODO: implement generic solution. */
 #endif /* __arm__ */
+#endif
 	return ret;
 }
 
@@ -151,9 +153,11 @@ turn_display_off(void)
 
 	debugf("Turning display off.");
 	display_state = state_off;
+#if 0
 #ifdef __arm__
 	gr_save(); /* Qualcomm specific. TODO: implement generic solution. */
 #endif /* __arm__ */
+#endif
 	return sysfs_write_int(display_control, 0);
 }
 
@@ -178,7 +182,8 @@ main(void)
 	int have_fb0 = 0;
 	/* the drm backend doesn't support multiple clients */
 	have_fb0 = !access("/dev/fb0", F_OK) || !access("/dev/graphics/fb0", F_OK);
-	if (have_fb0) {
+#if 0
+	if (!have_fb0) {
 #ifdef __arm__
 		/* Qualcomm specific. TODO: implement generic solution. */
 		if (gr_init(false)) {
@@ -188,6 +193,7 @@ main(void)
 		}
 #endif /* __arm__ */
 	}
+#endif
 
 	if (have_fb0) {
 		display_control = DISPLAY_CONTROL;
@@ -252,11 +258,13 @@ main(void)
 	}
 
 	turn_display_on();
+#if 0
 #ifdef __arm__
 	if (have_fb0) {
 		gr_exit(); /* Qualcomm specific. TODO: implement generic solution. */
 	}
 #endif /* __arm__ */
+#endif
 	close_fds(fds, num_fds);
 	debugf("Terminated");
 	return ret;

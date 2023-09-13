@@ -56,7 +56,7 @@ yamui: $(YAMUI_OBJ)
 
 SCREENSAVERD_SRC += yamui-screensaverd.c
 SCREENSAVERD_SRC += yamui-tools.c
-SCREENSAVERD_SRC += $(MINUI_SRC)
+#SCREENSAVERD_SRC += $(MINUI_SRC)
 SCREENSAVERD_OBJ := $(patsubst %.c, %.o, $(SCREENSAVERD_SRC))
 
 yamui-screensaverd: $(SCREENSAVERD_OBJ)
