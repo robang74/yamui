@@ -215,8 +215,8 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 
     static GRSurface *gr_draw_ptr = NULL, *gr_flip_ptr = NULL;
     if(!gr_flip_ptr || !gr_draw_ptr) {
-        gr_draw_ptr = gr_draw;
         gr_flip_ptr = gr_flip_n_copy();
+        gr_draw_ptr = gr_draw;
     }
 
 	while ((off = *s++)) {
