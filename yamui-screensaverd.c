@@ -135,11 +135,12 @@ turn_display_on(void)
 {
 	int ret;
 
-	if (display_state == state_on)
-		return 0;
-
-	display_state = state_on;
-	printf("Turning display on.\n");
+	if (display_state != state_on) {
+		printf("Turning display on.\n");
+	    display_state = state_on;
+	} else {
+	    printf("Refresh display on.\n");
+    }
 	ret = sysfs_write_int(display_control, display_control_on_value);
 #if 0
 #ifdef __arm___
@@ -325,12 +326,10 @@ main(void)
 					ret_t r;
 
 					r = handle_events(fds[i], NULL);
-					if (r == ret_continue) {
-					    printf("skip event, fds[%d]: %d\n", i, fds[i]);
+					if (r == ret_continue)
 						continue;
-					}
-					printf("stop running, fds[%d]: %d\n", i, fds[i]);
 
+					printf("stop running, fds[%d]: %d\n", i, fds[i]);
 					ret = get_exit_status(r);
 					running = 0;
 					break;
@@ -340,11 +339,12 @@ main(void)
 		} else if (rv == 0) { /* Timeout */
 			turn_display_off();
 		} else { /* Error or signal */
-		    fprintf(stderr, "ERROR: select(%d) failed, errno(%d): %s\n",
-		        max_fd, errno, strerror(errno));
 			if (errno != EINTR) {
-				errorf("Error on select()");
+		        fprintf(stderr, "ERROR: select(%d) failed, errno(%d): %s\n",
+		            max_fd, errno, strerror(errno));
 				ret = EXIT_FAILURE;
+			} else {
+			    printf("application interrupted, terminating.\n");
 			}
 			break;
 		}
@@ -359,6 +359,6 @@ main(void)
 #endif /* __arm__ */
 #endif
 	close_fds(fds, num_fds);
-	debugf("Terminated");
+	printf("Terminated\n");
 	return ret;
 }
