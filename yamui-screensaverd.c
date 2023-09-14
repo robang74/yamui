@@ -138,9 +138,58 @@ turn_display_on(void)
 	printf("Turning display on.\n");
 	display_state = state_on;
 	ret = sysfs_write_int(display_control, display_control_on_value);
+#if 0
 #ifdef __arm___
 	gr_restore(); /* Qualcomm specific. TODO: implement generic solution. */
 #endif /* __arm__ */
+#endif
+
+#if USE_READ_FOR_PWKEY_CMD
+    static char cmdstr[1024], *fname = NULL;
+    static int fd = -1, size;
+    while(fd == -1) {
+        fname = getenv("PWKEY_CMD_FILE");
+        if(fname)
+            fd = open(fname, O_RDONLY);
+        if(fd == -1) {
+            if(errno != ENOENT)
+                fprintf(stderr,"ERROR: open(%s) failed, errno(%d): %s\n",
+                    fname, errno, strerror(errno));
+            break;
+        }
+        size = read(fd, cmdstr, 1024);
+        if(!size) {
+            fprintf(stderr,"WARNING: read(%s) returned zero size\n", fname);
+            close(fd);
+            fd = 0;
+        } else
+        if(size == 1024) {
+            fprintf(stderr,"WARNING: read(%s) returned max size\n", fname);
+            close(fd);
+            fd = 0;
+        } else
+        if(size == -1) {
+            fprintf(stderr,"ERROR: read(%s) failed, errno(%d): %s\n",
+                fname, errno, strerror(errno));
+            close(fd);
+            fd = 0;
+        } else
+            close(fd);
+        break;
+    }
+    if(fd > 0) system(cmdstr);
+#else
+    //RAF: this way is much simpler but the file should be executable. On the
+    //     other side, the excutable flag could be pourposely switched to enable
+    //     or disable the execution of the command by the yamui-screensaverd.
+    static char *fname = NULL;
+    if(!fname) fname = getenv("PWKEY_CMD_FILE");
+    if( fname && system(fname)) {
+        fprintf(stderr,"ERROR: read(%s) failed, errno(%d): %s\n",
+            fname, errno, strerror(errno));
+    }
+#endif /* USE_SYSTEM_FOR_PWKEY_CMD */
+
 	return ret;
 }
 
@@ -154,9 +203,11 @@ turn_display_off(void)
 
 	printf("Turning display off.\n");
 	display_state = state_off;
+#if 0
 #ifdef __arm__
 	gr_save(); /* Qualcomm specific. TODO: implement generic solution. */
 #endif /* __arm__ */
+#endif
 	return sysfs_write_int(display_control, display_control_off_value);
 }
 
