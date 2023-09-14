@@ -21,13 +21,16 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
+#include <unistd.h>
+#include <string.h>
 
 #include <signal.h>
 #include <sys/signalfd.h>
 #include <sys/select.h>
 
 #include "os-update.h"
-#include "minui/minui.h"
+#include "minui/graphics.h"
 
 #define MSTIME_HEADER_ONLY
 #define MSTIME_STATIC_VARS
@@ -56,6 +59,10 @@ static long long int app_text_xpos = 0, app_text_ypos = 0;
 
 long long int v_shift = 0;
 
+#define basename (argv_ptr[get_my_basename_index()])
+
+static char **argv_ptr = NULL;
+
 /* ------------------------------------------------------------------------ */
 
 static int __attribute__((unused))
@@ -80,10 +87,6 @@ _wait_signalfd(int sigfd, unsigned long long int msecs)
 	return ret;
 }
 
-#include <errno.h>
-#include <unistd.h>
-#include <string.h>
-
 static int
 wait_signalfd(int sigfd, unsigned long long int msecs)
 {
@@ -100,10 +103,6 @@ wait_signalfd(int sigfd, unsigned long long int msecs)
 }
 
 /* ------------------------------------------------------------------------ */
-
-#define basename (argv_ptr[get_my_basename_index()])
-
-static char **argv_ptr = NULL;
 
 static inline int
 get_my_basename_index(void)
@@ -207,6 +206,12 @@ main(int argc, char *argv[])
 	get_ms_time_run();
 
 	setlinebuf(stdout);
+	
+	unsigned char rgba[4];
+	uint32_t *wp = (uint32_t *)(&rgba);
+	*wp = 0U | 8U << 8 | 16U << 16 | 24U << 24;
+	printf("the rgba order is r:%d, g:%d, b:%d, a:%d\n",
+	    (int)rgba[0], (int)rgba[1], (int)rgba[2], (int)rgba[3]);
 
 	while (1) {
 		c = getopt_long(argc, argv, "a:i:p:s:t:m:x:y:v:kh", options,
