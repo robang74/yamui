@@ -34,9 +34,9 @@ static gr_surface logo;
 /* ------------------------------------------------------------------------ */
 
 int
-osUpdateScreenInit(void)
+osUpdateScreenInit(bool blank)
 {
-	if (gr_init(true)) {
+	if (gr_init(blank)) {
 		printf("Failed gr_init!\n");
 		return -1;
 	}

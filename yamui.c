@@ -189,6 +189,7 @@ int
 main(int argc, char *argv[])
 {
 	int c, option_index;
+	bool flip = true, blank = false;
 	unsigned long int animate_ms = 0;
 	unsigned long long int stop_ms = 0;
 	unsigned long long int progress_ms = 0;
@@ -295,8 +296,11 @@ main(int argc, char *argv[])
     }
 
 	get_ms_time_run();
+	 
+	if (image_count || text_count || progress_ms)
+	    blank = true;
 
-	if (osUpdateScreenInit())
+	if (osUpdateScreenInit(blank & 0))
 		return -1;
 
     if(v_shift) {
@@ -325,8 +329,10 @@ main(int argc, char *argv[])
 	gr_color(255, 255, 255, 255);
 
 	/* In case there is text to add, add it to both sides of the "flip" */
-	if(text_count && (animate_ms || progress_ms))
+	if(text_count && (animate_ms || progress_ms)) {
 	    add_text(text, text_count);
+	    flip = false;
+	}
 
 	get_ms_time_run();
 
@@ -350,6 +356,7 @@ main(int argc, char *argv[])
 			i++;
 			i = i % image_count;
 		}
+		flip = false;
 
 	    get_ms_time_run();
 
@@ -366,6 +373,7 @@ main(int argc, char *argv[])
             printf("Cannot use a progress_ms value bigger than 2^31\n");
             progress_ms = (1ULL<<31);
         }
+        flip = true;
 
         if(progress_ms < 100) {
             osUpdateScreenShowProgress(100);
@@ -408,16 +416,20 @@ main(int argc, char *argv[])
 			printf("Image \"%s\" not found in /res/images/\n", images[0]);
         else
 		    showLogo();
+		flip = false;
 	}
 
 	get_ms_time_run();
 
 	/* In case there is text to add, add it to both sides of the "flip" */
-	if(text_count)
+	if(text_count) {
 	    add_text(text, text_count);
+	    flip = false;
+	}
 
 	get_ms_time_run();
 
+	if(flip) gr_flip();
 	wait_signalfd(sigfd, stop_ms);
 
 	get_ms_time_run();
