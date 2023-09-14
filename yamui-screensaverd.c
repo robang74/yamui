@@ -254,6 +254,59 @@ signal_handler(int sig UNUSED)
 
 /* ------------------------------------------------------------------------ */
 
+typedef enum {
+	key_up,
+	key_down,
+	key_long_press
+} key_state_t;
+
+static key_state_t power_key_state = key_up;
+
+typedef enum {
+	key_ev_up,
+	key_ev_down
+} key_ev_t; /* Why <linux/input.h> still doesn't define it for us? */
+
+/* Returns:
+ * ret_success	- Power key was pressed, terminate main loop.
+ * ret_continue	- Some other key was pressed or released, continue main loop.
+ */
+static ret_t
+handle_event(const struct input_event *ev)
+{
+	if (ev->type != EV_KEY || ev->code != KEY_POWER) {
+		/* We are not recalculating timeout value in case of
+		 * "interrupted" key_down state because select() properly
+		 * updates timeout value on return. This behavior of select()
+		 * is Linux-specific, and on other platforms you have to
+		 * recalculate timeout value by your own. */
+		return ret_continue; /* Ignore other events and keys */
+	}
+
+	if (power_key_state == key_up) {
+		if (ev->value == key_ev_down) {
+			debugf("New state: key_down");
+			power_key_state = key_down;
+			return ret_success;
+			//reset_timeout_value();
+		} /* Else key_ev_up.
+		   * This can happen with multiple Power keys.
+		   * Ignore and keep timeout unchanged. */
+	} else
+	if (power_key_state == key_down) {
+		if (ev->value == key_ev_up) {
+			debugf("New state: key_up");
+			power_key_state = key_up;
+			return ret_continue;
+		} /* Else key_ev_down.
+		   * This can happen with multiple Power keys. */
+	}
+
+	return ret_continue;
+}
+
+/* ------------------------------------------------------------------------ */
+
 int
 main(void)
 {
@@ -321,13 +374,16 @@ main(void)
 		printf("wait on select(%d) for an event\n", max_fd);
 		rv = select(max_fd + 1, &rfds, NULL, NULL, &tv);
 		if (rv > 0) {
+			ret_t r = ret_continue;
 			for (i = 0; i < num_fds; i++) {
 				if (FD_ISSET(fds[i], &rfds)) {
-					ret_t r;
-
-					r = handle_events(fds[i], NULL);
-					if (r == ret_continue)
-						continue;
+				    r = handle_events(fds[i], handle_event);
+				    if (r == ret_continue) {
+				        continue;
+				    } else
+				    if (r == ret_success) {
+				        break;
+				    }
 
 					printf("stop running, fds[%d]: %d\n", i, fds[i]);
 					ret = get_exit_status(r);
@@ -335,7 +391,9 @@ main(void)
 					break;
 				}
 			}
-			turn_display_on();
+			if (r == ret_success) {
+			    turn_display_on();
+			}
 		} else if (rv == 0) { /* Timeout */
 			turn_display_off();
 		} else { /* Error or signal */
