@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/select.h>
@@ -127,20 +128,101 @@ sysfs_write_int(const char *fname, int val)
 
 /* ------------------------------------------------------------------------ */
 
+#define USE_READ_FOR_PWKEY_CMD 0
+
 static int
 turn_display_on(void)
 {
 	int ret;
 
-	if (display_state == state_on)
-		return 0;
-
-	printf("Turning display on.\n");
-	display_state = state_on;
+	if (display_state != state_on) {
+		printf("Turning display on.\n");
+	    display_state = state_on;
+	} else {
+	    printf("Refresh display on.\n");
+    }
 	ret = sysfs_write_int(display_control, display_control_on_value);
+#if 0
 #ifdef __arm___
 	gr_restore(); /* Qualcomm specific. TODO: implement generic solution. */
 #endif /* __arm__ */
+#endif
+
+#if USE_READ_FOR_PWKEY_CMD
+    static char cmdstr[1024], *fname = NULL;
+    static int fd = -1, size;
+    while(fd == -1) {
+        fname = getenv("PWKEY_CMD_FILE");
+        if(fname)
+            fd = open(fname, O_RDONLY);
+        if(fd == -1) {
+            if(errno != ENOENT)
+                fprintf(stderr,"ERROR: open(%s) failed, errno(%d): %s\n",
+                    fname, errno, strerror(errno));
+            break;
+        }
+        size = read(fd, cmdstr, 1024);
+        if(!size) {
+            fprintf(stderr,"WARNING: read(%s) returned zero size\n", fname);
+            close(fd);
+            fd = 0;
+        } else
+        if(size == 1024) {
+            fprintf(stderr,"WARNING: read(%s) returned max size\n", fname);
+            close(fd);
+            fd = 0;
+        } else
+        if(size == -1) {
+            fprintf(stderr,"ERROR: read(%s) failed, errno(%d): %s\n",
+                fname, errno, strerror(errno));
+            close(fd);
+            fd = 0;
+        } else
+            close(fd);
+        break;
+    }
+    if(fd > 0) system(cmdstr);
+#else
+    //RAF: this way is much simpler but the file should be executable. On the
+    //     other side, the excutable flag could be pourposely switched to enable
+    //     or disable the execution of the command by the yamui-screensaverd.
+    static char *fname = NULL;
+    if(!fname) fname = getenv("PWKEY_CMD_FILE");
+
+    if(fname) {
+        FILE *pf = popen(fname, "r");
+        if(!pf) {
+            fprintf(stderr,"ERROR: popen(%s) failed, errno(%d): %s\n",
+                fname, errno, strerror(errno));
+        } else {
+            char str[16];
+            if(fgets(str, sizeof(str), pf)) {
+                for(int i = sizeof(str)-1; i >= 0; i--)
+                    if(str[i] == '\n') str[i] = 0;
+                printf("fgets(%s) on fileno(%d) returned: %s\n",
+                    fname, fileno(pf), str);
+            } else
+                fprintf(stderr,"ERROR: fgets(%s) failed, errno(%d): %s\n",
+                    fname, errno, strerror(errno));
+            pclose(pf);
+            int pid = atoi(str);
+            if(pid > 0) {
+                if(waitpid(pid, NULL, WNOHANG | WUNTRACED | WCONTINUED) == -1)
+                    fprintf(stderr,"ERROR: waitpid(%d) failed, errno(%d): %s\n",
+                        pid, errno, strerror(errno));
+            } else
+                fprintf(stderr,"ERROR: pid(%d) is not valid\n", pid);
+        }
+    }
+#if 0 /* The system() does not return but popen() does */
+    if(fname && system(fname)) {
+        fprintf(stderr,"ERROR: read(%s) failed, errno(%d): %s\n",
+            fname, errno, strerror(errno));
+    } else
+        printf("Command by system(%s) completed.\n", fname);
+#endif
+#endif /* USE_SYSTEM_FOR_PWKEY_CMD */
+
 	return ret;
 }
 
@@ -154,9 +236,11 @@ turn_display_off(void)
 
 	printf("Turning display off.\n");
 	display_state = state_off;
+#if 0
 #ifdef __arm__
 	gr_save(); /* Qualcomm specific. TODO: implement generic solution. */
 #endif /* __arm__ */
+#endif
 	return sysfs_write_int(display_control, display_control_off_value);
 }
 
@@ -166,6 +250,59 @@ static void
 signal_handler(int sig UNUSED)
 {
 	running = 0;
+}
+
+/* ------------------------------------------------------------------------ */
+
+typedef enum {
+	key_up,
+	key_down,
+	key_long_press
+} key_state_t;
+
+static key_state_t power_key_state = key_up;
+
+typedef enum {
+	key_ev_up,
+	key_ev_down
+} key_ev_t; /* Why <linux/input.h> still doesn't define it for us? */
+
+/* Returns:
+ * ret_success	- Power key was pressed, terminate main loop.
+ * ret_continue	- Some other key was pressed or released, continue main loop.
+ */
+static ret_t
+handle_event(const struct input_event *ev)
+{
+	if (ev->type != EV_KEY || ev->code != KEY_POWER) {
+		/* We are not recalculating timeout value in case of
+		 * "interrupted" key_down state because select() properly
+		 * updates timeout value on return. This behavior of select()
+		 * is Linux-specific, and on other platforms you have to
+		 * recalculate timeout value by your own. */
+		return ret_continue; /* Ignore other events and keys */
+	}
+
+	if (power_key_state == key_up) {
+		if (ev->value == key_ev_down) {
+			debugf("New state: key_down");
+			power_key_state = key_down;
+			return ret_success;
+			//reset_timeout_value();
+		} /* Else key_ev_up.
+		   * This can happen with multiple Power keys.
+		   * Ignore and keep timeout unchanged. */
+	} else
+	if (power_key_state == key_down) {
+		if (ev->value == key_ev_up) {
+			debugf("New state: key_up");
+			power_key_state = key_up;
+			return ret_continue;
+		} /* Else key_ev_down.
+		   * This can happen with multiple Power keys. */
+	}
+
+	return ret_continue;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -198,10 +335,10 @@ main(void)
 #endif
 	
 	if (have_fb0) {
-		printf("framebuffer found, using it.\n");
+		printf("framebuffer fb0 found, using it.\n");
 		display_control = DISPLAY_CONTROL;
 	} else {
-		printf("framebuffer not found, using drm.\n");
+		printf("framebuffer fb0 not found, using drm.\n");
 		display_control = DISPLAY_CONTROL_DRM;
 	}
 
@@ -234,30 +371,39 @@ main(void)
 		tv.tv_sec  = DISPLAY_OFF_TIME;
 		tv.tv_usec = 0;
 
+		debugf("wait on select(%d) for an event\n", max_fd);
 		rv = select(max_fd + 1, &rfds, NULL, NULL, &tv);
 		if (rv > 0) {
+			ret_t r = ret_continue;
 			for (i = 0; i < num_fds; i++) {
 				if (FD_ISSET(fds[i], &rfds)) {
-					ret_t r;
+				    r = handle_events(fds[i], handle_event);
+				    if (r == ret_continue) {
+				        continue;
+				    } else
+				    if (r == ret_success) {
+				        break;
+				    }
 
-					r = handle_events(fds[i], NULL);
-					if (r == ret_continue)
-						continue;
-
+					printf("stop running, fds[%d]: %d, r: %d\n", i, fds[i], r);
 					ret = get_exit_status(r);
 					running = 0;
 					break;
 				}
 			}
-			turn_display_on();
-		} else if (rv == 0) /* Timeout */
-			turn_display_off();
-		else { /* Error or signal */
-			if (errno != EINTR) {
-				errorf("Error on select()");
-				ret = EXIT_FAILURE;
+			if (r == ret_success) {
+			    turn_display_on();
 			}
-
+		} else if (rv == 0) { /* Timeout */
+			turn_display_off();
+		} else { /* Error or signal */
+			if (errno != EINTR) {
+		        fprintf(stderr, "ERROR: select(%d) failed, errno(%d): %s\n",
+		            max_fd, errno, strerror(errno));
+				ret = EXIT_FAILURE;
+			} else {
+			    printf("application interrupted, terminating...\n");
+			}
 			break;
 		}
 	}
@@ -271,6 +417,6 @@ main(void)
 #endif /* __arm__ */
 #endif
 	close_fds(fds, num_fds);
-	debugf("Terminated");
+	printf("Terminated\n");
 	return ret;
 }
