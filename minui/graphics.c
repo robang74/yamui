@@ -114,14 +114,14 @@ char_blend(uint8_t *sx, int src_row_bytes, uint8_t *px, uint8_t *bx,
     {
         for (l = 0; l < factor; l++)
         {
-            for (i = 0; i < width; i++)
+            for (z = 0, i = 0; i < width; i++, z += factor)
             {
                 if (gr_current_a < 255)
                     a = alpha_apply(0, gr_current_a, sx[i]);
                 else
                     a = sx[i];
 
-                for (z = i * factor, k = 0; k < factor; k++, z++)
+                for (k = 0; k < factor; k++, z++)
                 {
 #if 0
                     printf("a: %u, j:%d/%d, l:%d, i:%d/%d, k:%d, r:%d/%d, f: %d\n",
@@ -213,18 +213,21 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 	    factor, font->cwidth, font->cheight, overscan_offset_x,
 	    overscan_offset_y, kx, ky, x, y);
 
+	get_ms_time_run();
+
     static GRSurface *gr_draw_ptr = NULL, *gr_flip_ptr = NULL;
     if(!gr_flip_ptr || !gr_draw_ptr) {
         gr_flip_ptr = gr_flip_n_copy();
         gr_draw_ptr = gr_draw;
     }
 
+	get_ms_time_run();
+
 	while ((off = *s++)) {
-		off -= 32;
-		if (outside(x, y) || outside(x + frcw - 1, y + frch - 1))
+		if (outside(x + frcw - 1, y + frch - 1))
 			break;
 
-		if (off < 96) {
+		if ((off -= 32) >= 0 && off < 96) {
 			uint8_t *src_p = font->texture->data + (off * font->cwidth) +
 				(bold ? font->cheight * font->texture->row_bytes : 0);
 
