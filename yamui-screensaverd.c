@@ -335,10 +335,10 @@ main(void)
 #endif
 	
 	if (have_fb0) {
-		printf("framebuffer found, using it.\n");
+		printf("framebuffer fb0 found, using it.\n");
 		display_control = DISPLAY_CONTROL;
 	} else {
-		printf("framebuffer not found, using drm.\n");
+		printf("framebuffer fb0 not found, using drm.\n");
 		display_control = DISPLAY_CONTROL_DRM;
 	}
 
@@ -371,7 +371,7 @@ main(void)
 		tv.tv_sec  = DISPLAY_OFF_TIME;
 		tv.tv_usec = 0;
 
-		printf("wait on select(%d) for an event\n", max_fd);
+		debugf("wait on select(%d) for an event\n", max_fd);
 		rv = select(max_fd + 1, &rfds, NULL, NULL, &tv);
 		if (rv > 0) {
 			ret_t r = ret_continue;
@@ -385,7 +385,7 @@ main(void)
 				        break;
 				    }
 
-					printf("stop running, fds[%d]: %d\n", i, fds[i]);
+					printf("stop running, fds[%d]: %d, r: %d\n", i, fds[i], r);
 					ret = get_exit_status(r);
 					running = 0;
 					break;
@@ -402,7 +402,7 @@ main(void)
 		            max_fd, errno, strerror(errno));
 				ret = EXIT_FAILURE;
 			} else {
-			    printf("application interrupted, terminating.\n");
+			    printf("application interrupted, terminating...\n");
 			}
 			break;
 		}
