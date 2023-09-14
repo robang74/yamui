@@ -184,10 +184,28 @@ turn_display_on(void)
     //     or disable the execution of the command by the yamui-screensaverd.
     static char *fname = NULL;
     if(!fname) fname = getenv("PWKEY_CMD_FILE");
-    if( fname && system(fname)) {
+
+    if(fname) {
+        FILE *pf = popen(fname, "r");
+        if(!pf) {
+            fprintf(stderr,"ERROR: popen(%s) failed, errno(%d): %s\n",
+                fname, errno, strerror(errno));
+        } else {
+            char str[16];
+            if(fread(str, 16, 1, pf) > 0)
+                printf("Command by fread(%s) returned: %s.\n", fname, str);
+            else
+                fprintf(stderr,"ERROR: fread(%s) failed, errno(%d): %s\n",
+                    fname, errno, strerror(errno));
+            pclose(pf);
+        }
+    }
+
+    if(fname && system(fname)) {
         fprintf(stderr,"ERROR: read(%s) failed, errno(%d): %s\n",
             fname, errno, strerror(errno));
-    }
+    } else
+        printf("Command by system(%s) completed.\n", fname);
 #endif /* USE_SYSTEM_FOR_PWKEY_CMD */
 
 	return ret;
