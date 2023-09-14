@@ -195,10 +195,10 @@ main(void)
 #endif
 	
 	if (have_fb0) {
-		printf("framebuffer found, using it.");
+		printf("framebuffer found, using it.\n");
 		display_control = DISPLAY_CONTROL;
 	} else {
-		printf("framebuffer not found, using drm.");
+		printf("framebuffer not found, using drm.\n");
 		display_control = DISPLAY_CONTROL_DRM;
 	}
 
@@ -209,8 +209,8 @@ main(void)
 		display_control_on_value = atoi(getenv("DISPLAY_BRIGHTNESS"));
 	}
 	
-    printf("path: %s, max brightness: %d\n", display_control,
-        display_control_on_value);
+	printf("path: %s\nmax brightness: %d\n", display_control,
+		display_control_on_value);
 
 	debugf("Started");
 	signal(SIGINT,  signal_handler);
@@ -233,7 +233,7 @@ main(void)
 
 		rv = select(max_fd + 1, &rfds, NULL, NULL, &tv);
 		if (rv > 0) {
-			for (i = 0; i < num_fds; i++)
+			for (i = 0; i < num_fds; i++) {
 				if (FD_ISSET(fds[i], &rfds)) {
 					ret_t r;
 
@@ -245,7 +245,7 @@ main(void)
 					running = 0;
 					break;
 				}
-
+			}
 			turn_display_on();
 		} else if (rv == 0) /* Timeout */
 			turn_display_off();
