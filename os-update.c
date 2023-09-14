@@ -41,10 +41,11 @@ osUpdateScreenInit(bool blank)
 		return -1;
 	}
 
-	/* Clear the screen */
-	gr_color(0, 0, 0, 255);
-	gr_clear();
-
+    if(blank) {
+	    /* Clear the screen */
+	    gr_color(0, 0, 0, 255);
+	    gr_clear();
+    }
 	return 0;
 }
 
