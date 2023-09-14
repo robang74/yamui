@@ -207,6 +207,13 @@ main(int argc, char *argv[])
 	get_ms_time_run();
 
 	setlinebuf(stdout);
+	setlinebuf(stderr);
+	
+	unsigned char rgba[4];
+	uint32_t *wp = (uint32_t *)(&rgba);
+	*wp = 0U | 8U << 8 | 16U << 16 | 24U << 24;
+	printf("the rgba order is r:%d, g:%d, b:%d, a:%d\n",
+	    (int)rgba[0], (int)rgba[1], (int)rgba[2], (int)rgba[3]);
 
 	while (1) {
 		c = getopt_long(argc, argv, "a:i:p:s:t:m:x:y:v:kh", options,

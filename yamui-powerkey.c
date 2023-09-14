@@ -223,6 +223,9 @@ main(int argc, char *argv[])
 {
 	int opt, fds[MAX_DEVICES], num_fds = 0, ret = EXIT_SIGNAL;
 
+	setlinebuf(stdout);
+	setlinebuf(stderr);
+
 	while ((opt = getopt(argc, argv, "d:hu")) != -1) {
 		switch (opt) {
 		case 'd':
