@@ -206,8 +206,6 @@ main(int argc, char *argv[])
 
 	argv_ptr = argv;
 
-	get_ms_time_run();
-
 	setlinebuf(stdout);
 	setlinebuf(stderr);
 	
@@ -333,10 +331,9 @@ main(int argc, char *argv[])
 	/* In case there is text to add, add it to both sides of the "flip" */
 	if(text_count && (animate_ms || progress_ms)) {
 	    add_text(text, text_count);
+	    get_ms_time_run();
 	    flip = false;
 	}
-
-	get_ms_time_run();
 
 	if (animate_ms && image_count > 1) {
 		bool never_stop = !stop_ms;
@@ -426,10 +423,9 @@ main(int argc, char *argv[])
 	/* In case there is text to add, add it to both sides of the "flip" */
 	if(text_count) {
 	    add_text(text, text_count);
+	    get_ms_time_run();
 	    flip = false;
 	}
-
-	get_ms_time_run();
 
 	if(flip) { gr_flip(); gr_flip(); }
 	wait_signalfd(sigfd, stop_ms);
@@ -443,6 +439,8 @@ cleanup:
 	    close(sigfd);
 	sigfd = -1;
     osUpdateScreenExit();
+    get_ms_time_run();
 out:
+	get_ms_time_run();
 	return ret;
 }
