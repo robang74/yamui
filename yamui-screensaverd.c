@@ -317,6 +317,7 @@ main(void)
 		tv.tv_sec  = DISPLAY_OFF_TIME;
 		tv.tv_usec = 0;
 
+		printf("wait on select(%d) for an event\n", max_fd);
 		rv = select(max_fd + 1, &rfds, NULL, NULL, &tv);
 		if (rv > 0) {
 			for (i = 0; i < num_fds; i++) {
@@ -324,8 +325,11 @@ main(void)
 					ret_t r;
 
 					r = handle_events(fds[i], NULL);
-					if (r == ret_continue)
+					if (r == ret_continue) {
+					    printf("skip event, fds[%d]: %d\n", i, fds[i]);
 						continue;
+					}
+					printf("stop running, fds[%d]: %d\n", i, fds[i]);
 
 					ret = get_exit_status(r);
 					running = 0;
@@ -333,14 +337,15 @@ main(void)
 				}
 			}
 			turn_display_on();
-		} else if (rv == 0) /* Timeout */
+		} else if (rv == 0) { /* Timeout */
 			turn_display_off();
-		else { /* Error or signal */
+		} else { /* Error or signal */
+		    fprintf(stderr, "ERROR: select(%d) failed, errno(%d): %s\n",
+		        max_fd, errno, strerror(errno));
 			if (errno != EINTR) {
 				errorf("Error on select()");
 				ret = EXIT_FAILURE;
 			}
-
 			break;
 		}
 	}
