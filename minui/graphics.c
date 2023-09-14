@@ -55,10 +55,11 @@ static int overscan_offset_y = 0;
 
 static int gr_vt_fd = -1;
 
-static unsigned char gr_current_r = 255;
-static unsigned char gr_current_g = 255;
-static unsigned char gr_current_b = 255;
-static unsigned char gr_current_a = 255;
+static uint8_t gr_current_r;
+static uint8_t gr_current_g;
+static uint8_t gr_current_b;
+static uint8_t gr_current_a;
+static uint32_t gr_current_rgba;
 
 static GRSurface *gr_draw = NULL;
 
@@ -96,11 +97,12 @@ void gr_font_size(int *x, int *y)
 	((unsigned)sx * (255 - a)) + ((unsigned)bg * a) ) / 255 )
 
 static void
-char_blend(unsigned char *sx, int src_row_bytes, unsigned char *px,
-    unsigned char *bx, int dst_row_bytes, int width, int height, int factor)
+char_blend(uint8_t *sx, int src_row_bytes, uint8_t *px, uint8_t *bx,
+            int dst_row_bytes, int width, int height, int factor)
 {
-	int i, j, l, k, z;
-	unsigned char a;
+	uint8_t a;
+	int i, j, l, k, z = 0;
+    uint32_t *wbx = (uint32_t *)bx, *wpx = (uint32_t *)px;
 
 /* RAF: in the most generic case the RGBA is not the only format possible.
  *      The pixel_bytes should be passed as function parameter and verified.
@@ -119,9 +121,8 @@ char_blend(unsigned char *sx, int src_row_bytes, unsigned char *px,
                 else
                     a = sx[i];
 
-                for (k = 0; k < factor; k++)
+                for (z = i * factor, k = 0; k < factor; k++, z++)
                 {
-                    z = (k<<2) + ((i*factor)<<2);
 #if 0
                     printf("a: %u, j:%d/%d, l:%d, i:%d/%d, k:%d, r:%d/%d, f: %d\n",
                         a, j, height, l, i, width, k, src_row_bytes, dst_row_bytes,
@@ -130,31 +131,27 @@ char_blend(unsigned char *sx, int src_row_bytes, unsigned char *px,
                     if (a == 255)
                     {
                         //RAF: transparency none
-                        px[z+0] = gr_current_r;
-                        px[z+1] = gr_current_g;
-                        px[z+2] = gr_current_b;
-                        if(!bx) continue;
-                        bx[z+0] = px[z+0];
-                        bx[z+1] = px[z+1];
-                        bx[z+2] = px[z+2];
+                        wpx[z] = gr_current_rgba;
                     } else
                     if (a > 0)
                     {
+                        int h = z << 2;
                         //RAF: transparency dims
-                        px[z+0] = alpha_apply(px[z+0], gr_current_r, a);
-                        px[z+1] = alpha_apply(px[z+1], gr_current_g, a);
-                        px[z+2] = alpha_apply(px[z+2], gr_current_b, a);
-                        if(!bx) continue;
-                        bx[z+0] = px[z+0];
-                        bx[z+1] = px[z+1];
-                        bx[z+2] = px[z+2];
+                        px[h+0] = alpha_apply(px[h+0], gr_current_r, a);
+                        px[h+1] = alpha_apply(px[h+1], gr_current_g, a);
+                        px[h+2] = alpha_apply(px[h+2], gr_current_b, a);
                     }
+                    if(wbx) wbx[z] = wpx[z];
                 }
             }
-            px+=dst_row_bytes;
-            if(bx) bx+=dst_row_bytes;
+            px += dst_row_bytes;
+            wpx = (uint32_t *)px;
+            if(bx) {
+                bx += dst_row_bytes;
+                wbx = (uint32_t *)bx;
+            }
         }
-        sx+=src_row_bytes;
+        sx += src_row_bytes;
     }
 }
 
@@ -163,10 +160,10 @@ char_blend(unsigned char *sx, int src_row_bytes, unsigned char *px,
 // RAF: (x,y) is the coordinates at which it starts to render the text
 //      the following macro can be useful somewhere else (TODO)
 
-#define gr_draw_data_ptr(x,y) (unsigned char *)(gr_draw_ptr->data + \
+#define gr_draw_data_ptr(x,y) (uint8_t *)(gr_draw_ptr->data + \
         (x * gr_draw_ptr->pixel_bytes)) + (y * gr_draw_ptr->row_bytes)
 
-#define gr_flip_data_ptr(x,y) (unsigned char *)(gr_flip_ptr->data + \
+#define gr_flip_data_ptr(x,y) (uint8_t *)(gr_flip_ptr->data + \
         (x * gr_flip_ptr->pixel_bytes)) + (y * gr_flip_ptr->row_bytes)
 
 /*
@@ -196,10 +193,13 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 
 	bold = bold && (font->texture->height != font->cheight);
 	
-	if(kx < 0)
-	    kx = -kx;
-	else
-	    strw = (frcw * strlen(s)) >> 1; //RAF: center the text
+	if(kx < 0) {
+	    //RAF: align the text on the right side
+	    kx = -kx; 
+	} else {
+	    //RAF: center the text on the screen
+	    strw = (frcw * strlen(s)) >> 1;
+    }
 
     x = MIL_DIV(gr_draw->width  * kx) + overscan_offset_x - strw;
     if(x < ABSOLUTE_DISPLAY_MARGIN_X) x = ABSOLUTE_DISPLAY_MARGIN_X;
@@ -213,19 +213,22 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 	    factor, font->cwidth, font->cheight, overscan_offset_x,
 	    overscan_offset_y, kx, ky, x, y);
 
+	get_ms_time_run();
+
     static GRSurface *gr_draw_ptr = NULL, *gr_flip_ptr = NULL;
     if(!gr_flip_ptr || !gr_draw_ptr) {
         gr_flip_ptr = gr_flip_n_copy();
         gr_draw_ptr = gr_draw;
     }
 
+	get_ms_time_run();
+
 	while ((off = *s++)) {
-		off -= 32;
-		if (outside(x, y) || outside(x + frcw - 1, y + frch - 1))
+		if (outside(x + frcw - 1, y + frch - 1))
 			break;
 
-		if (off < 96) {
-			unsigned char *src_p = font->texture->data + (off * font->cwidth) +
+		if ((off -= 32) >= 0 && off < 96) {
+			uint8_t *src_p = font->texture->data + (off * font->cwidth) +
 				(bold ? font->cheight * font->texture->row_bytes : 0);
 
 			char_blend(src_p, font->texture->row_bytes, gr_draw_data_ptr(x, y),
@@ -269,12 +272,13 @@ gr_texticon(int x, int y, GRSurface *icon)
 /* ------------------------------------------------------------------------ */
 
 void
-gr_color(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+gr_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
 	gr_current_r = r;
 	gr_current_g = g;
 	gr_current_b = b;
 	gr_current_a = a;
+	gr_current_rgba = gr_update_rgba();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -287,7 +291,7 @@ gr_clear(void)
 		       gr_draw->height * gr_draw->row_bytes);
 	else {
 		int x, y;
-		unsigned char *px = gr_draw->data;
+		uint8_t *px = gr_draw->data;
 
 		for (y = 0; y < gr_draw->height; y++) {
 			for (x = 0; x < gr_draw->width; x++) {
@@ -308,7 +312,7 @@ gr_clear(void)
 void
 gr_fill(int x1, int y1, int x2, int y2)
 {
-	unsigned char *p;
+	uint8_t *p;
 
 	x1 += overscan_offset_x;
 	y1 += overscan_offset_y;
@@ -326,7 +330,7 @@ gr_fill(int x1, int y1, int x2, int y2)
 		int x, y;
 
 		for (y = y1; y < y2; y++) {
-			unsigned char *px = p;
+			uint8_t *px = p;
 
 			for (x = x1; x < x2; x++) {
 				*px++ = gr_current_r;
@@ -341,7 +345,7 @@ gr_fill(int x1, int y1, int x2, int y2)
 		int x, y;
 
 		for (y = y1; y < y2; y++) {
-			unsigned char *px = p;
+			uint8_t *px = p;
 
 			for (x = x1; x < x2; x++) {
 				*px = (*px * (255 - gr_current_a) +
@@ -367,7 +371,7 @@ void
 gr_blit(GRSurface *source, int sx, int sy, int w, int h, int dx, int dy)
 {
 	int i;
-	unsigned char *src_p, *dst_p;
+	uint8_t *src_p, *dst_p;
 
 	if (!source)
 		return;
@@ -455,7 +459,7 @@ gr_init_font(void)
 	get_ms_time_run();
 
 	if (!font_loaded) {
-		unsigned char *bits, data, *in = font.rundata;
+		uint8_t *bits, data, *in = font.rundata;
 
 		/* fall back to the compiled-in font. */
 		/* TODO: Check for error */
@@ -541,16 +545,18 @@ int gr_init(bool blank)
 	}
 
 	get_ms_time_run();
-
+#if 0
 	gr_flip();
 	if (!gr_draw)
 		return -1;
 	gr_flip();
 	if (!gr_draw)
 		return -1;
-
-	overscan_offset_x = gr_draw->width  * overscan_percent / 100;
-	overscan_offset_y = gr_draw->height * overscan_percent / 100;
+#endif
+    if(overscan_percent) {
+	    overscan_offset_x = gr_draw->width  * overscan_percent / 100;
+	    overscan_offset_y = gr_draw->height * overscan_percent / 100;
+	}
 
 	get_ms_time_run();
 

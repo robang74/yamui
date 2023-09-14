@@ -22,11 +22,16 @@ extern "C" {
 #endif /* __cplusplus */
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "minui.h"
 
 #define ABSOLUTE_DISPLAY_MARGIN_X 20
 #define ABSOLUTE_DISPLAY_MARGIN_Y 20
+
+typedef uint32_t w32;
+#define comp_to_rgba(r,g,b,a) ((w32)(r) | (w32)(g) << 8 | (w32)(b) << 16 | (a) << 24)
+#define gr_update_rgba() comp_to_rgba(gr_current_r, gr_current_g, gr_current_b, gr_current_a)
 
 typedef struct minui_backend {
 	/* Initializes the backend and returns a gr_surface to draw into. */

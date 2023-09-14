@@ -21,13 +21,16 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
+#include <unistd.h>
+#include <string.h>
 
 #include <signal.h>
 #include <sys/signalfd.h>
 #include <sys/select.h>
 
 #include "os-update.h"
-#include "minui/minui.h"
+#include "minui/graphics.h"
 
 #define MSTIME_HEADER_ONLY
 #define MSTIME_STATIC_VARS
@@ -56,6 +59,10 @@ static long long int app_text_xpos = 0, app_text_ypos = 0;
 
 long long int v_shift = 0;
 
+#define basename (argv_ptr[get_my_basename_index()])
+
+static char **argv_ptr = NULL;
+
 /* ------------------------------------------------------------------------ */
 
 static int __attribute__((unused))
@@ -80,13 +87,11 @@ _wait_signalfd(int sigfd, unsigned long long int msecs)
 	return ret;
 }
 
-#include <errno.h>
-#include <unistd.h>
-#include <string.h>
-
 static int
 wait_signalfd(int sigfd, unsigned long long int msecs)
 {
+    return _wait_signalfd(sigfd, msecs);
+
     if(!msecs)
         return _wait_signalfd(sigfd, msecs);
 
@@ -100,10 +105,6 @@ wait_signalfd(int sigfd, unsigned long long int msecs)
 }
 
 /* ------------------------------------------------------------------------ */
-
-#define basename (argv_ptr[get_my_basename_index()])
-
-static char **argv_ptr = NULL;
 
 static inline int
 get_my_basename_index(void)
@@ -289,11 +290,11 @@ main(int argc, char *argv[])
 		    printf("Animating requires at least 2 images\n");
     }
 
-    if(text_count) {
+    if(!text_count) {
         if (app_font_multipl)
-            printf("The font multiplier will be ingored without text");
+            printf("The font multiplier will be ingored without text\n");
         if (app_text_xpos || app_text_ypos)
-            printf("The x-pos and y-pos will be ingored without text");
+            printf("The x-pos and y-pos will be ingored without text\n");
     }
 
 	get_ms_time_run();
@@ -430,7 +431,7 @@ main(int argc, char *argv[])
 
 	get_ms_time_run();
 
-	if(flip) gr_flip();
+	if(flip) { gr_flip(); gr_flip(); }
 	wait_signalfd(sigfd, stop_ms);
 
 	get_ms_time_run();
