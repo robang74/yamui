@@ -1,12 +1,14 @@
 #ifndef _OS_UPDATE_H_
 #define _OS_UPDATE_H_
 
+#include <stdbool.h>
+
 /* Initializes the minui
  *
  * @return 0 when successfull
  * @return -1 when init fails, in this case anything below shouldn't be used.
  */
-int osUpdateScreenInit(void);
+int osUpdateScreenInit(bool blank);
 
 /*
  * Loads logo and overrides the old logo if already loaded.
