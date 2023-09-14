@@ -40,6 +40,9 @@ int main (int argc, char **argv)
 {
     int ret = 0;
 
+	setlinebuf(stdout);
+	setlinebuf(stderr);
+
     if(argc < 2) {
         if(basename[0] == 'm') {
             get_ms_time_now();

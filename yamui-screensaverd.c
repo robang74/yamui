@@ -175,6 +175,9 @@ main(void)
 {
 	int fds[MAX_DEVICES], num_fds = 0, ret = EXIT_SUCCESS;
 
+	setlinebuf(stdout);
+	setlinebuf(stderr);
+
 	if (open_fds(fds, &num_fds, MAX_DEVICES, check_device_type) == -1)
 		return EXIT_FAILURE;
 

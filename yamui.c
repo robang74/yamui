@@ -206,6 +206,7 @@ main(int argc, char *argv[])
 	get_ms_time_run();
 
 	setlinebuf(stdout);
+	setlinebuf(stderr);
 	
 	unsigned char rgba[4];
 	uint32_t *wp = (uint32_t *)(&rgba);
