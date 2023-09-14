@@ -31,15 +31,24 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#if USE_DBUS
 #include <glib.h>
 #include <gio/gio.h>
-
 #include <systemd/sd-daemon.h>
+#else
+#include <limits.h>
+#include <errno.h>
+typedef char gchar;
+typedef bool gboolean;
+#define g_free free
+#define g_strdup strdup
+#define mainloop_stop() exit(0)
+#endif /* USE_DBUS */
 
 #include "os-update.h"
 #include "minui/minui.h"
 
-#define IMAGES_MAX      30
+#define IMAGES_MAX 32
 
 /* ========================================================================= *
  * Logging
@@ -69,58 +78,71 @@
  * DISPLAY
  * ------------------------------------------------------------------------- */
 
+#if USE_DBUS
 static void display_acquire            (void);
 static void display_release            (void);
 static bool display_is_acquired        (void);
-static void display_set_updates_enabled(bool enabled);
 static void display_set_blanked        (bool blanked);
+static void display_set_updates_enabled(bool enabled);
 static bool display_can_be_drawn       (void);
+#endif
 
 /* ------------------------------------------------------------------------- *
  * SYSTEMBUS
  * ------------------------------------------------------------------------- */
 
+#if USE_DBUS
 static bool systembus_is_available           (void);
 static void systembus_probe_socket           (void);
 static void systembus_socket_monitor_event_cb(GFileMonitor *mon, GFile *file, GFile *other_file, GFileMonitorEvent event_type, gpointer user_data);
 static void systembus_quit_socket_monitor    (void);
 static bool systembus_init_socket_monitor    (void);
+#endif /* USE_DBUS */
 
 /* ------------------------------------------------------------------------- *
  * MAINLOOP
  * ------------------------------------------------------------------------- */
 
+#if USE_DBUS
 static void mainloop_run (void);
 static void mainloop_stop(void);
+#endif /* USE_DBUS */
 
 /* ------------------------------------------------------------------------- *
  * SIGNALS
  * ------------------------------------------------------------------------- */
 
+#if USE_DBUS
 static gboolean signals_iowatch_cb(GIOChannel *chn, GIOCondition cnd, gpointer aptr);
 static bool     signals_init      (void);
 static void     signals_quit      (void);
+#endif /* USE_DBUS */
 
 /* ------------------------------------------------------------------------- *
  * UNIX_SERVER
  * ------------------------------------------------------------------------- */
 
+#if USE_DBUS
 static bool     unix_server_handle_client(void);
 static gboolean unix_server_iowatch_cb   (GIOChannel *chn, GIOCondition cnd, gpointer aptr);
 static bool     unix_server_addr         (struct sockaddr_un *sa, socklen_t *sa_len);
 static bool     unix_server_init         (void);
 static void     unix_server_quit         (void);
+#endif /* USE_DBUS */
 
 /* ------------------------------------------------------------------------- *
  * UNIX_CLIENT
  * ------------------------------------------------------------------------- */
 
+#if USE_DBUS
 static bool unix_client_terminate_server(void);
+#endif /* USE_DBUS */
 
 /* ------------------------------------------------------------------------- *
  * COMPOSITOR
  * ------------------------------------------------------------------------- */
 
+#if USE_DBUS
 static void      compositor_method_call_cb  (GDBusConnection *connection, const gchar *sender, const gchar *object_path, const gchar *interface_name, const gchar *method_name, GVariant *parameters, GDBusMethodInvocation *invocation, gpointer user_data);
 static GVariant *compositor_get_property_cb (GDBusConnection *connection, const gchar *sender, const gchar *object_path, const gchar *interface_name, const gchar *property_name, GError **error, gpointer user_data);
 static gboolean  compositor_set_property_cb (GDBusConnection *connection, const gchar *sender, const gchar *object_path, const gchar *interface_name, const gchar *property_name, GVariant *value, GError **error, gpointer user_data);
@@ -133,27 +155,32 @@ static void      compositor_cancel_connect  (void);
 static void      compositor_disconnect      (void);
 static bool      compositor_init            (void);
 static void      compositor_quit            (void);
+#endif /* USE_DBUS */
 
 /* ------------------------------------------------------------------------- *
  * APP
  * ------------------------------------------------------------------------- */
 
-static void     app_notify_systemd          (void);
-static void     app_on_enable_from_dbus     (void);
+#if 0 /* NOT USED BY NOW */
+static void     app_draw_ui                 (void);
 static void     app_add_image               (const char *filename);
 static void     app_flush_images            (void);
-static void     app_draw_ui                 (void);
 static void     app_draw_text               (void);
 static void     app_draw_single_image_cb    (void);
 static void     app_start_single_image      (void);
-static void     app_draw_progress_bar_cb    (void);
-static gboolean app_update_progress_bar_cb  (gpointer aptr);
+#endif /* NOT USED BY NOW */
+#if USE_DBUS
+static void     app_notify_systemd          (void);
+static void     app_on_enable_from_dbus     (void);
 static void     app_start_progress_bar      (void);
-static void     app_draw_animate_images_cb  (void);
-static gboolean app_update_animate_images_cb(gpointer aptr);
+static void     app_draw_progress_bar_cb    (void);
 static void     app_start_animate_images    (void);
+static void     app_draw_animate_images_cb  (void);
+static gboolean app_update_progress_bar_cb  (gpointer aptr);
+static gboolean app_update_animate_images_cb(gpointer aptr);
 static gboolean app_start_cb                (gpointer aptr);
 static gboolean app_stop_cb                 (gpointer aptr);
+#endif /* USE_DBUS */
 static void     app_print_short_help        (void);
 static void     app_print_long_help         (void);
 
@@ -167,6 +194,7 @@ int main(int argc, char *argv[]);
  * DISPLAY
  * ========================================================================= */
 
+#if USE_DBUS
 static bool display_acquired = false;
 static bool display_released = false;
 static bool display_enabled  = false;
@@ -261,10 +289,12 @@ display_can_be_drawn(void)
 {
 	return display_is_acquired() && display_enabled && !display_blanked;
 }
+#endif
 
 /* ========================================================================= *
  * SYSTEMBUS
  * ========================================================================= */
+#if USE_DBUS
 
 /** Path to D-Bus SystemBus socket */
 #define SYSTEMBUS_SOCKET_PATH "/run/dbus/system_bus_socket"
@@ -382,10 +412,12 @@ cleanup:
 
 	return ack;
 }
+#endif /* USE_DBUS */
 
 /* ========================================================================= *
  * MAINLOOP
  * ========================================================================= */
+#if USE_DBUS
 
 static GMainLoop *mainloop_handle = NULL;
 
@@ -412,10 +444,12 @@ mainloop_stop(void)
 		_exit(EXIT_FAILURE);
 	g_main_loop_quit(mainloop_handle);
 }
+#endif /* USE_DBUS */
 
 /* ========================================================================= *
  * SIGNALS
  * ========================================================================= */
+#if USE_DBUS
 
 static int   signals_signal_fd  = -1;
 static guint signals_iowatch_id =  0;
@@ -523,10 +557,12 @@ signals_quit(void)
 			signals_signal_fd = -1;
 	}
 }
+#endif /* USE_DBUS */
 
 /* ========================================================================= *
  * UNIX_SERVER
  * ========================================================================= */
+#if USE_DBUS
 
 static const char unix_server_path[]     = "@yamuisplash";
 static int        unix_server_socket_fd  = -1;
@@ -665,10 +701,12 @@ unix_server_quit(void)
 	if (unix_server_socket_fd != -1)
 		close(unix_server_socket_fd), unix_server_socket_fd = -1;
 }
+#endif /* USE_DBUS */
 
 /* ========================================================================= *
  * UNIX_CLIENT
  * ========================================================================= */
+#if USE_DBUS
 
 /** Terminate already running splashscreen application via unix socket ipc
  *
@@ -719,10 +757,12 @@ cleanup:
 		close(fd);
 	return ack;
 }
+#endif /* USE_DBUS */
 
 /* ========================================================================= *
  * COMPOSITOR
  * ========================================================================= */
+#if USE_DBUS
 
 /** Well known dbus name of compositor service */
 # define COMPOSITOR_SERVICE                     "org.nemomobile.compositor"
@@ -1049,6 +1089,7 @@ compositor_quit(void)
 			compositor_introspect_data = NULL;
 	}
 }
+#endif /* USE_DBUS */
 
 /* ========================================================================= *
  * APP
@@ -1059,12 +1100,13 @@ static unsigned long long int   app_stop_ms               = 0;
 static unsigned long long int   app_progress_ms           = 0;
 static char                    *app_text                  = NULL;
 static gchar                   *app_images[IMAGES_MAX]    = {};
-static const char              *app_images_dir            = "/res/images";;
+static const char              *app_images_dir            = "/res/images";
 static int                      app_image_count           = 0;
-static bool                     app_already_enabled       = false;
 static bool                     app_systemd_notify        = false;
-static int                      app_step                  = -1;
+#if USE_DBUS
 static void                   (*app_draw_ui_cb)(void)     = NULL;
+static bool                     app_already_enabled       = false;
+static int                      app_step                  = -1;
 
 /** Notify systemd that application has started up
  *
@@ -1102,6 +1144,8 @@ app_on_enable_from_dbus(void)
 	}
 }
 
+#endif /* USE_DBUS */
+
 /** Locate and cache path to image file given on command line
  *
  * Tries:
@@ -1114,43 +1158,90 @@ app_on_enable_from_dbus(void)
 static void
 app_add_image(const char *filename)
 {
+#if USE_DBUS
 	gchar *filepath = NULL;
+#else
+    static char filepath[PATH_MAX];
+#endif /* USE_DBUS */
 
 	/* have room for more images? */
 	if (app_image_count >= IMAGES_MAX) {
 		log_err("%s: ignored, too many images", filename);
-		goto cleanup;
+		return;
 	}
 
 	/* try: filename as-is */
+#if USE_DBUS
 	filepath = g_strdup(filename);
+#else
+    snprintf(filepath, PATH_MAX, "%s", filename);
+    filepath[PATH_MAX-1] = 0;
+#endif /* USE_DBUS */
 	if (access(filepath, R_OK) == 0)
 		goto cleanup;
 	if (errno != ENOENT)
 		log_err("%s: access(): %m", filepath);
+
+	/* try: filename as-is with png extension */
+#if USE_DBUS
 	g_free(filepath), filepath = NULL;
+	filepath = g_strdup_printf("%s.png", filename);
+	if (filepath && access(filepath, R_OK) == 0)
+		goto cleanup;
+#else
+    snprintf(filepath, PATH_MAX, "%s.png", filename);
+    filepath[PATH_MAX-1] = 0;
+	if (access(filepath, R_OK) == 0)
+		goto cleanup;
+#endif /* USE_DBUS */
+	if (errno != ENOENT)
+		log_err("%s: access(): %m", filepath);
 
 	/* try: filename in image dir */
+#if USE_DBUS
+	g_free(filepath), filepath = NULL;
 	filepath = g_strdup_printf("%s/%s", app_images_dir, filename);
 	if (filepath && access(filepath, R_OK) == 0)
 		goto cleanup;
+#else
+    snprintf(filepath, PATH_MAX, "%s/%s", app_images_dir, filename);
+    filepath[PATH_MAX-1] = 0;
+	if (access(filepath, R_OK) == 0)
+		goto cleanup;
+#endif /* USE_DBUS */
 	if (errno != ENOENT)
 		log_err("%s: access(): %m", filepath);
-	g_free(filepath), filepath = NULL;
 
 	/* try: filename in image dir with png extension */
+#if USE_DBUS
+	g_free(filepath), filepath = NULL;
 	filepath = g_strdup_printf("%s/%s.png", app_images_dir, filename);
 	if (filepath && access(filepath, R_OK) == 0)
 		goto cleanup;
-	log_err("%s: access(): %m", filepath);
-	g_free(filepath), filepath = NULL;
+#else
+    snprintf(filepath, PATH_MAX, "%s/%s.png", app_images_dir, filename);
+    filepath[PATH_MAX-1] = 0;
+	if (access(filepath, R_OK) == 0)
+		goto cleanup;
+#endif
+	if (errno != ENOENT)
+		log_err("%s: access(): %m", filepath);
+    else
+        log_err("%s: access(): %m", filename);
+    return;
 
 cleanup:
-	if (filepath) {
-		log_debug("got image \"%s\" to display", filepath);
-		app_images[app_image_count++] = filepath;
-	}
+#if USE_DBUS
+	if (!filepath) return;
+	app_images[app_image_count++] = filepath;
+#else
+    app_images[app_image_count++] = strdup(filepath);
+#endif
+	log_debug("got image \"%s\" to display", filepath);
 }
+
+
+#if 0 /* NOT USED BY NOW */
 
 /** Flush cached image paths
  */
@@ -1208,6 +1299,10 @@ app_start_single_image(void)
 	else
 		app_draw_single_image_cb();
 }
+
+#endif /* NOT USED BY NOW */
+
+#if USE_DBUS
 
 /** Callback for drawing 'progress_bar' mode ui
  */
@@ -1378,6 +1473,23 @@ app_stop_cb(gpointer aptr)
 	return G_SOURCE_REMOVE;
 }
 
+#else
+/*
+static void
+app_start_progress_bar(void)
+{
+    return; //RAF, TODO: use the v1.0.6 version
+}
+
+static void
+app_start_animate_images(void)
+{
+    return; //RAF, TODO: use the v1.0.6 version
+
+}
+*/
+#endif /* USE_DBUS */
+
 /** Show short usage info
  */
 static void
@@ -1476,10 +1588,12 @@ main(int argc, char *argv[])
 			app_text = optarg;
 			break;
 		case 'x':
+#if USE_DBUS
 			if (!unix_client_terminate_server()) {
 				log_err("Failed to terminate splashscreen");
 				exit(EXIT_FAILURE);
 			}
+#endif /* USE_DBUS */
 			log_debug("terminated splashscreen");
 			exit(EXIT_SUCCESS);
 		case 'n':
@@ -1511,6 +1625,8 @@ main(int argc, char *argv[])
 		app_print_short_help();
 		exit(EXIT_FAILURE);
 	}
+
+#if USE_DBUS
 
 	if (!compositor_init())
 		goto cleanup;
@@ -1568,6 +1684,14 @@ cleanup:
 	    systembus_quit_socket_monitor();
 	    compositor_quit();
 	}
+#else
+
+    //RAF, TODO: use the v1.0.6 implementation
+
+	if (do_cleanup) {} 
+	if (debugging) {}
+
+#endif /* USE_DBUS */
 
 	log_debug("exit");
 	return EXIT_SUCCESS;

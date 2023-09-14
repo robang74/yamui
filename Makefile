@@ -1,8 +1,8 @@
 PKG_NAMES += libdrm
 PKG_NAMES += libpng
-PKG_NAMES += glib-2.0
-PKG_NAMES += gio-2.0
-PKG_NAMES += libsystemd
+#PKG_NAMES += glib-2.0
+#PKG_NAMES += gio-2.0
+#PKG_NAMES += libsystemd
 
 PKG_CONFIG := pkg-config
 PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PKG_NAMES))
