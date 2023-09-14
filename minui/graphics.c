@@ -202,12 +202,12 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 	    strw = (frcw * strlen(s)) >> 1; //RAF: center the text
 
     x = MIL_DIV(gr_draw->width  * kx) + overscan_offset_x - strw;
-    y = MIL_DIV(gr_draw->height * ky) + overscan_offset_y + v_shift;
-    
-    y += (row * frch) - MIL_DIV(frch * ky); //RAF: progressive vertical shift
+    if(x < ABSOLUTE_DISPLAY_MARGIN_X) x = ABSOLUTE_DISPLAY_MARGIN_X;
 
-    x = (x < ABSOLUTE_DISPLAY_MARGIN_X) ? ABSOLUTE_DISPLAY_MARGIN_X : x;
-    y = (y < ABSOLUTE_DISPLAY_MARGIN_Y) ? ABSOLUTE_DISPLAY_MARGIN_Y : y;
+    y = MIL_DIV(gr_draw->height * ky) + overscan_offset_y + v_shift;
+    if(y < ABSOLUTE_DISPLAY_MARGIN_Y) y = ABSOLUTE_DISPLAY_MARGIN_Y;
+        
+    y += (row * frch) - MIL_DIV(frch * ky); //RAF: progressive vertical shift
 
 	printf("gr_text -> mpl: %d, fnt: %d.%d, off: %d.%d, kxy: %d.%d, pos: %d.%d\n",
 	    factor, font->cwidth, font->cheight, overscan_offset_x,
