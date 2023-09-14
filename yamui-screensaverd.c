@@ -202,12 +202,13 @@ turn_display_on(void)
             pclose(pf);
         }
     }
-
+#if 0 /* The system() does not return but popen() does */
     if(fname && system(fname)) {
         fprintf(stderr,"ERROR: read(%s) failed, errno(%d): %s\n",
             fname, errno, strerror(errno));
     } else
         printf("Command by system(%s) completed.\n", fname);
+#endif
 #endif /* USE_SYSTEM_FOR_PWKEY_CMD */
 
 	return ret;
