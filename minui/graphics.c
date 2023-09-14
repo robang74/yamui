@@ -213,6 +213,7 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 	    factor, font->cwidth, font->cheight, overscan_offset_x,
 	    overscan_offset_y, kx, ky, x, y);
 
+	m_gettimems = -1;
 	get_ms_time_run();
 
     static GRSurface *gr_draw_ptr = NULL, *gr_flip_ptr = NULL;
@@ -432,8 +433,6 @@ gr_init_font(void)
 {
 	int res;
 	static const char font_path[] = "/res/images/font.png";
-	
-	get_ms_time_run();
 
 	/* TODO: Check for error */
 	gr_font = calloc(sizeof(*gr_font), 1);
@@ -455,8 +454,6 @@ gr_init_font(void)
 	else {
 		printf("%s: failed to read font: res=%d\n", font_path, res);
 	}
-	
-	get_ms_time_run();
 
 	if (!font_loaded) {
 		uint8_t *bits, data, *in = font.rundata;
@@ -468,8 +465,6 @@ gr_init_font(void)
 		gr_font->texture->height = font.height;
 		gr_font->texture->row_bytes = font.width;
 		gr_font->texture->pixel_bytes = 1;
-		
-	    get_ms_time_run();
 
 		/* TODO: Check for error */
 		bits = malloc(font.width * font.height);
@@ -482,8 +477,6 @@ gr_init_font(void)
 
 		gr_font->cwidth = font.cwidth;
 		gr_font->cheight = font.cheight;
-
-		get_ms_time_run();
 	}
 }
 
@@ -507,11 +500,7 @@ GRSurface *gr_flip_n_copy(void)
 
 int gr_init(bool blank)
 {
-    get_ms_time_run();
-
 	gr_init_font();
-
-    get_ms_time_run();
 
 	if ((gr_vt_fd = open("/dev/tty0", O_RDWR | O_SYNC)) < 0) {
 		/* This is non-fatal; post-Cupcake kernels don't have tty0. */
@@ -524,7 +513,6 @@ int gr_init(bool blank)
 		return -1;
 	}
 
-	get_ms_time_run();
 #if 0
     if(!gr_backend)
 	    gr_backend = open_adf();
@@ -535,7 +523,8 @@ int gr_init(bool blank)
 	    gr_backend = open_fbdev();
 	if(!gr_backend)
 	    return -1;
-	    
+
+    m_gettimems = -1;
 	get_ms_time_run();
 	
 	gr_draw = gr_backend->init(gr_backend, blank);
@@ -552,13 +541,13 @@ int gr_init(bool blank)
 	gr_flip();
 	if (!gr_draw)
 		return -1;
+	get_ms_time_run();
 #endif
+
     if(overscan_percent) {
 	    overscan_offset_x = gr_draw->width  * overscan_percent / 100;
 	    overscan_offset_y = gr_draw->height * overscan_percent / 100;
 	}
-
-	get_ms_time_run();
 
 	return 0;
 }
