@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/select.h>
@@ -194,12 +195,22 @@ turn_display_on(void)
                 fname, errno, strerror(errno));
         } else {
             char str[16];
-            if(fgets(str, sizeof(str), pf))
-                printf("Command by fgets(%s) returned: %s.\n", fname, str);
-            else
+            if(fgets(str, sizeof(str), pf)) {
+                for(int i = sizeof(str)-1; i >= 0; i--)
+                    if(str[i] == '\n') str[i] = 0;
+                printf("fgets(%s) on fileno(%d) returned: %s\n",
+                    fname, fileno(pf), str);
+            } else
                 fprintf(stderr,"ERROR: fgets(%s) failed, errno(%d): %s\n",
                     fname, errno, strerror(errno));
             pclose(pf);
+            int pid = atoi(str);
+            if(pid > 0) {
+                if(waitpid(pid, NULL, WNOHANG | WUNTRACED | WCONTINUED) == -1)
+                    fprintf(stderr,"ERROR: waitpid(%d) failed, errno(%d): %s\n",
+                        pid, errno, strerror(errno));
+            } else
+                fprintf(stderr,"ERROR: pid(%d) is not valid\n", pid);
         }
     }
 #if 0 /* The system() does not return but popen() does */
