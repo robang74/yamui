@@ -127,6 +127,8 @@ sysfs_write_int(const char *fname, int val)
 
 /* ------------------------------------------------------------------------ */
 
+#define USE_READ_FOR_PWKEY_CMD 0
+
 static int
 turn_display_on(void)
 {
@@ -135,8 +137,8 @@ turn_display_on(void)
 	if (display_state == state_on)
 		return 0;
 
-	printf("Turning display on.\n");
 	display_state = state_on;
+	printf("Turning display on.\n");
 	ret = sysfs_write_int(display_control, display_control_on_value);
 #if 0
 #ifdef __arm___
@@ -192,10 +194,10 @@ turn_display_on(void)
                 fname, errno, strerror(errno));
         } else {
             char str[16];
-            if(fread(str, 16, 1, pf) > 0)
-                printf("Command by fread(%s) returned: %s.\n", fname, str);
+            if(fgets(str, sizeof(str), pf))
+                printf("Command by fgets(%s) returned: %s.\n", fname, str);
             else
-                fprintf(stderr,"ERROR: fread(%s) failed, errno(%d): %s\n",
+                fprintf(stderr,"ERROR: fgets(%s) failed, errno(%d): %s\n",
                     fname, errno, strerror(errno));
             pclose(pf);
         }
