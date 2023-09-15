@@ -54,18 +54,16 @@ osUpdateScreenInit(bool blank)
 int
 loadLogo(const char *filename, const char *dir)
 {
-	int ret;
+	int ret = 0;
 
 	if (logo)
 		res_free_surface(logo);
 
-	if ((ret = res_create_display_surface(filename, dir, &logo)) < 0) {
-		printf("Error while trying to load %s, retval: %i.\n",
-		       filename, ret);
-		return -1;
-	}
+	if ((ret = res_create_display_surface(filename, dir, &logo)) < 0)
+		fprintf(stderr, "ERROR: %s(%s), returned: %d.\n",
+			__func__, filename, ret);
 
-	return 0;
+	return ret;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -98,7 +96,7 @@ showLogo(void)
         printf("No logo loaded\n");
         return -1;
     }
-	
+
     gr_logo();
     gr_flip();
 
