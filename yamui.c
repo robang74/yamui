@@ -208,12 +208,14 @@ main(int argc, char *argv[])
 
 	setlinebuf(stdout);
 	setlinebuf(stderr);
-	
+
+#if 0
 	unsigned char rgba[4];
 	uint32_t *wp = (uint32_t *)(&rgba);
 	*wp = 0U | 8U << 8 | 16U << 16 | 24U << 24;
 	printf("the rgba order is r:%d, g:%d, b:%d, a:%d\n",
 	    (int)rgba[0], (int)rgba[1], (int)rgba[2], (int)rgba[3]);
+#endif
 
 	while (1) {
 		c = getopt_long(argc, argv, "a:i:p:s:t:m:x:y:v:kh", options,
@@ -336,7 +338,6 @@ main(int argc, char *argv[])
 		goto cleanup; //RAF, TODO: it can be return -1 here
 	}
 
-	get_ms_time_run();
 	
 	gr_color(255, 255, 255, 255);
 
@@ -349,9 +350,13 @@ main(int argc, char *argv[])
 
 	if (animate_ms && image_count > 1) {
 		bool never_stop = !stop_ms;
-		long int time_left = stop_ms;
-		int period = animate_ms / image_count;
+		#define imgcnt (unsigned long)image_count
+		long period = (animate_ms < imgcnt) ? imgcnt : animate_ms;
+		long time_left = (stop_ms < imgcnt) ? imgcnt : stop_ms;
 
+		period = INT_DIV(period, image_count);
+
+		m_gettimems = -1;
 		get_ms_time_run();
 
 		i = 0;
@@ -394,6 +399,7 @@ main(int argc, char *argv[])
 
         int wtme = progress_ms/100, trst = progress_ms, step = 1;
 
+        m_gettimems = -1;
         get_ms_time_run();
 
         if(wtme < 10) {
@@ -421,6 +427,7 @@ main(int argc, char *argv[])
         goto cleanup;
 	} else
 	if (image_count) {
+	    m_gettimems = -1;
 	    get_ms_time_run();
 
 		if(loadLogo(images[0], images_dir))
@@ -428,8 +435,11 @@ main(int argc, char *argv[])
         else
 		    showLogo();
 		flip = false;
+
+		get_ms_time_run();
 	}
 
+	m_gettimems = -1;
 	get_ms_time_run();
 
 	/* In case there is text to add, add it to both sides of the "flip" */
