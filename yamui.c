@@ -304,6 +304,7 @@ main(int argc, char *argv[])
 		return -1;
 
     if (!blank) {
+#if 0 //RAF, TODO: until restore will work this is useless
 	    printf("Restore the screen buffer and sleep 2s...\n");
 	    gr_restore();
 	    usleep(2<<20);
@@ -312,6 +313,7 @@ main(int argc, char *argv[])
 	    usleep(2<<20);
 	    gr_flip();
 	    printf("Flip again and wait for a signal...\n");
+#endif
     } else
     if(v_shift) {
         v_shift = MIL_DIV(v_shift * gr_fb_height());
@@ -461,8 +463,10 @@ cleanup:
     osUpdateScreenExit();
     get_ms_time_run();
 saving:
+#if 0 //RAF, TODO: until restore will work this is useless
     gr_save();
     gr_exit();
+#endif
 out:
 	return ret;
 }
