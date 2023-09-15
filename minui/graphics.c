@@ -217,8 +217,16 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 	get_ms_time_run();
 
     static GRSurface *gr_draw_ptr = NULL, *gr_flip_ptr = NULL;
+#if 0
     if(!gr_flip_ptr || !gr_draw_ptr) {
         gr_flip_ptr = gr_flip_n_copy();
+        gr_draw_ptr = gr_draw;
+    }
+#endif
+    if(!gr_flip_ptr || !gr_draw_ptr) {
+        gr_save();
+        gr_flip_ptr = gr_flip();
+        gr_restore();
         gr_draw_ptr = gr_draw;
     }
 
