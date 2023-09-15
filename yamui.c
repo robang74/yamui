@@ -300,9 +300,21 @@ main(int argc, char *argv[])
 	if (image_count || text_count || progress_ms)
 	    blank = true;
 
-	if (osUpdateScreenInit(blank & 0))
+	if (osUpdateScreenInit(0))
 		return -1;
 
+    if (!blank) {
+#if 0 //RAF, TODO: until restore will work this is useless
+	    printf("Restore the screen buffer and sleep 2s...\n");
+	    gr_restore();
+	    usleep(2<<20);
+	    printf("Flip the screen buffer and sleep 2s...\n");
+	    gr_flip();
+	    usleep(2<<20);
+	    gr_flip();
+	    printf("Flip again and wait for a signal...\n");
+#endif
+    } else
     if(v_shift) {
         v_shift = MIL_DIV(v_shift * gr_fb_height());
         printf("real v-shift is %lld pixels\n", v_shift);
@@ -426,20 +438,35 @@ main(int argc, char *argv[])
 	    get_ms_time_run();
 	    flip = false;
 	}
-
-	if(flip) { gr_flip(); gr_flip(); }
+#if 0
+	if(flip) {
+	    printf("Restore the screen buffer and sleep 1s...\n");
+	    gr_restore();
+	    usleep(1000 * 1000);
+	    printf("Flip the screen buffer and sleep 1s...\n");
+	    gr_flip();
+	    usleep(1000 * 1000);
+	    gr_flip();
+	    printf("Flip again and wait for a signal...\n");
+	}
+#endif
 	wait_signalfd(sigfd, stop_ms);
 
 	get_ms_time_run();
 
 cleanup:
     if (!do_cleanup)
-        goto out;
+        goto saving;
     if (sigfd != -1)
 	    close(sigfd);
 	sigfd = -1;
     osUpdateScreenExit();
-    get_ms_time_run();
+    goto out;
+saving:
+#if 0 //RAF, TODO: until restore will work this is useless
+    gr_save();
+    gr_exit();
+#endif
 out:
 	get_ms_time_run();
 	return ret;
