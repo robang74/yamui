@@ -343,7 +343,6 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
     int width, height;
     int minor, ret;
 
-    get_ms_time_run();
 
     /* Consider DRM devices in order. */
     for (int_fast32_t i = 0; i < DRM_MAX_MINOR; i++) {
@@ -383,7 +382,6 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
         goto exit_with_error;
     }
 
-    get_ms_time_run();
 
 #if 0 //https://gist.github.com/Miouyouyou/2f227fd9d4116189625f501c0dcf0542
 
@@ -405,7 +403,6 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
         goto exit_with_error;
     }
 
-    get_ms_time_run();
 
     main_monitor_crtc = find_crtc_for_connector(drm_fd, res,
                                                 main_monitor_connector);
@@ -414,7 +411,6 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
         goto exit_with_error;
     }
 
-    get_ms_time_run();
 
     disable_non_main_crtcs(drm_fd,
                            res, main_monitor_crtc);
@@ -422,7 +418,6 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
     width = main_monitor_crtc->mode.hdisplay;
     height = main_monitor_crtc->mode.vdisplay;
 
-    get_ms_time_run();
 
     drm_surfaces[0] = drm_create_surface(width, height);
     drm_surfaces[1] = drm_create_surface(width, height);
@@ -444,7 +439,6 @@ static GRSurface* drm_init(minui_backend* backend __unused, bool blank) {
     drmModeFreeResources(res);
     res = NULL;
 
-    get_ms_time_run();
 
     printf("drm init -> minor: %d, width: %d, height: %d\n",
         minor, width, height);
