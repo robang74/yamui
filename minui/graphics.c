@@ -513,8 +513,6 @@ GRSurface *gr_flip_n_copy(void)
 
 int gr_init(bool blank)
 {
-	gr_init_font();
-
 	if ((gr_vt_fd = open("/dev/tty0", O_RDWR | O_SYNC)) < 0) {
 		/* This is non-fatal; post-Cupcake kernels don't have tty0. */
 		perror("can't open /dev/tty0");
@@ -522,20 +520,20 @@ int gr_init(bool blank)
 		/* However, if we do open tty0, we expect the ioctl
 		 * to work. */
 		perror("failed KDSETMODE to KD_GRAPHICS on tty0");
-		gr_exit();
-		return -1;
+        goto err_quit;
 	}
 
 #if 0
     if(!gr_backend)
 	    gr_backend = open_adf();
 #endif
+
 	if(!gr_backend)
 	    gr_backend = open_drm();
 	if(!gr_backend)
 	    gr_backend = open_fbdev();
 	if(!gr_backend)
-	    return -1;
+        goto err_quit;
 
     m_gettimems = -1;
 	get_ms_time_run();
@@ -543,10 +541,11 @@ int gr_init(bool blank)
 	gr_draw = gr_backend->init(gr_backend, blank);
 	if (!gr_draw) {
 		gr_backend->exit(gr_backend);
-        return -1;
+        goto err_quit;
 	}
 
 	get_ms_time_run();
+
 #if 0
 	gr_flip();
 	if (!gr_draw)
@@ -557,12 +556,20 @@ int gr_init(bool blank)
 	get_ms_time_run();
 #endif
 
+	gr_init_font();
+
     if(overscan_percent) {
-	    overscan_offset_x = gr_draw->width  * overscan_percent / 100;
-	    overscan_offset_y = gr_draw->height * overscan_percent / 100;
+	    overscan_offset_x = INT_DIV(gr_draw->width  * overscan_percent, 100);
+	    overscan_offset_y = INT_DIV(gr_draw->height * overscan_percent, 100);
 	}
 
 	return 0;
+
+err_quit:
+	if(gr_vt_fd > -1)
+	    close(gr_vt_fd);
+	gr_vt_fd = -1;
+    return -1;
 }
 
 /* ------------------------------------------------------------------------ */
