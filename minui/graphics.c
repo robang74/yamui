@@ -114,14 +114,14 @@ char_blend(uint8_t *sx, int src_row_bytes, uint8_t *px, uint8_t *bx,
     {
         for (l = 0; l < factor; l++)
         {
-            for (z = 0, i = 0; i < width; i++, z += factor)
+            for (i = 0; i < width; i++)
             {
                 if (gr_current_a < 255)
                     a = alpha_apply(0, gr_current_a, sx[i]);
                 else
                     a = sx[i];
 
-                for (k = 0; k < factor; k++, z++)
+                for (z = i * factor, k = 0; k < factor; k++, z++)
                 {
 #if 0
                     printf("a: %u, j:%d/%d, l:%d, i:%d/%d, k:%d, r:%d/%d, f: %d\n",

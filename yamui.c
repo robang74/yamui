@@ -90,6 +90,8 @@ _wait_signalfd(int sigfd, unsigned long long int msecs)
 static int
 wait_signalfd(int sigfd, unsigned long long int msecs)
 {
+    return _wait_signalfd(sigfd, msecs);
+
     if(!msecs)
         return _wait_signalfd(sigfd, msecs);
 
@@ -288,11 +290,11 @@ main(int argc, char *argv[])
 		    printf("Animating requires at least 2 images\n");
     }
 
-    if(text_count) {
+    if(!text_count) {
         if (app_font_multipl)
-            printf("The font multiplier will be ingored without text");
+            printf("The font multiplier will be ingored without text\n");
         if (app_text_xpos || app_text_ypos)
-            printf("The x-pos and y-pos will be ingored without text");
+            printf("The x-pos and y-pos will be ingored without text\n");
     }
 
 	get_ms_time_run();
@@ -429,7 +431,7 @@ main(int argc, char *argv[])
 
 	get_ms_time_run();
 
-	if(flip) gr_flip();
+	if(flip) { gr_flip(); gr_flip(); }
 	wait_signalfd(sigfd, stop_ms);
 
 	get_ms_time_run();
