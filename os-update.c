@@ -23,6 +23,10 @@
 #include "os-update.h"
 #include "minui/minui.h"
 
+#define MSTIME_HEADER_ONLY
+#define MSTIME_STATIC_VARS
+#include "get_time_ms.c"
+
 #define MARGIN 10
 
 const char logo_filename[] = "test";
@@ -52,20 +56,15 @@ osUpdateScreenInit(bool blank)
 /* ------------------------------------------------------------------------ */
 
 int
-loadLogo(const char *filename, const char *dir)
+loadLogo(const char *filename, const char *dir, const bool dofree)
 {
-	int ret;
+	int ret = 0;
 
-	if (logo)
-		res_free_surface(logo);
+	if ((ret = res_create_display_surface(filename, dir, &logo, dofree)) < 0)
+		fprintf(stderr, "ERROR: %s(%s), returned: %d.\n",
+            __func__, filename, ret);
 
-	if ((ret = res_create_display_surface(filename, dir, &logo)) < 0) {
-		printf("Error while trying to load %s, retval: %i.\n",
-		       filename, ret);
-		return -1;
-	}
-
-	return 0;
+	return ret;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -86,7 +85,11 @@ gr_logo(void)
     int dx = (fbw - logow) >> 1;
     int dy = (fbh - logoh) >> 1;
 
+    //get_ms_time_run();
+
     gr_blit(logo, 0, 0, logow, logoh, dx, dy + v_shift);
+
+    //get_ms_time_run();
 
 	return 0;
 }
@@ -98,9 +101,16 @@ showLogo(void)
         printf("No logo loaded\n");
         return -1;
     }
-	
+
+	//get_ms_time_run();
+
     gr_logo();
+
+    //get_ms_time_run();
+
     gr_flip();
+
+    //get_ms_time_run();
 
     return 0;
 }

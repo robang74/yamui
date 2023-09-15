@@ -18,7 +18,7 @@ int osUpdateScreenInit(bool blank);
  * @return 0 when loading successful
  * @return -1 when loading fails
  */
-int loadLogo(const char *filename, const char *dir);
+int loadLogo(const char *filename, const char *dir, const bool dofree);
 
 /*
  * Draw logo if one has been loaded with loadLogo.

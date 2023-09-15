@@ -21,6 +21,7 @@
 #include <png.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -34,26 +35,43 @@
 
 #include "minui.h"
 
+#define MSTIME_HEADER_ONLY
+#define MSTIME_STATIC_VARS
+#include "../get_time_ms.c"
+
 extern char *locale;
 
 #define SURFACE_DATA_ALIGNMENT 8
 
 /* ------------------------------------------------------------------------ */
 
+#define malloc_surface(size) realloc_surface(NULL, size)
+#define GR_SURFACE_SIZE (sizeof(GRSurface) + SURFACE_DATA_ALIGNMENT)
+#define GR_SURFACE_DATA_OFFSET (GR_SURFACE_SIZE - (sizeof(GRSurface) % SURFACE_DATA_ALIGNMENT))
+
 static gr_surface
-malloc_surface(size_t data_size)
+realloc_surface(gr_surface *psurface, size_t data_size)
 {
 	unsigned char *temp;
 	gr_surface surface;
 
-	temp = malloc(sizeof(GRSurface) + data_size + SURFACE_DATA_ALIGNMENT);
-	if (!temp)
+    //get_ms_time_run();
+
+	temp = realloc(psurface ? *psurface : NULL, GR_SURFACE_SIZE + data_size);
+	if (!temp) {
+        fprintf(stderr,"ERROR: realloc(*psurface) failed, errno(%d): %s\n",
+            errno, strerror(errno));
 		return NULL;
+    }
+
+    //get_ms_time_run();
 
 	surface = (gr_surface)temp;
-	surface->data = temp + sizeof(GRSurface) +
-			(SURFACE_DATA_ALIGNMENT -
-			 (sizeof(GRSurface) % SURFACE_DATA_ALIGNMENT));
+	surface->data = temp + GR_SURFACE_DATA_OFFSET;
+    *psurface = surface;
+
+    //get_ms_time_run();
+
 	return surface;
 }
 
@@ -176,12 +194,18 @@ close_png(png_structp *png_ptr, png_infop *info_ptr, FILE *fp)
 /* Allocate and return a gr_surface sufficient for storing an image of
  * the indicated size in the framebuffer pixel format. */
 static gr_surface
-init_display_surface(png_uint_32 width, png_uint_32 height)
+init_display_surface(gr_surface *psurface, png_uint_32 width, png_uint_32 height)
 {
 	gr_surface surface;
 
-	if (!(surface = malloc_surface(width * height * 4)))
+	//get_ms_time_run();
+
+	if (!(surface = realloc_surface(psurface, width * height << 2)))
 		return NULL;
+
+    //get_ms_time_run();
+
+    *psurface = surface;
 
 	surface->width = width;
 	surface->height = height;
@@ -241,11 +265,13 @@ transform_rgb_to_draw(unsigned char *input_row, unsigned char *output_row,
 /* ------------------------------------------------------------------------ */
 
 int
-res_create_display_surface(const char *name, const char *dir, gr_surface *pSurface)
+res_create_display_surface(const char *name, const char *dir,
+                            gr_surface *pSurface, const bool dofree)
 {
+	static unsigned char *p_row = NULL;
+
 	int result = 0;
 	unsigned int y;
-	unsigned char *p_row;
 	gr_surface surface = NULL;
 	png_structp png_ptr = NULL;
 	png_infop info_ptr = NULL;
@@ -255,33 +281,69 @@ res_create_display_surface(const char *name, const char *dir, gr_surface *pSurfa
 
 	*pSurface = NULL;
 
+	//get_ms_time_run();
+
+	if(!name && !dir) {
+	    if(dofree) {
+	        if(p_row)
+		        free(p_row);
+	        p_row = NULL;
+    	    return 0;
+    	}
+        return -1;
+	}
+
+	//get_ms_time_run();
+
 	result = open_png(name, dir, &png_ptr, &info_ptr, &fp, &width, &height,
 			  &channels);
 	if (result < 0)
 		return result;
 
-	if (!(surface = init_display_surface(width, height))) {
+    //get_ms_time_run();
+
+	if (!(surface = init_display_surface(pSurface, width, height))) {
 		result = -8;
 		goto exit;
 	}
 
+	//get_ms_time_run();
+
 	/* TODO: check for error */
-	p_row = malloc(width * 4);
+	p_row = realloc(p_row, width << 2);
+    if(!p_row) {
+        fprintf(stderr,"ERROR: realloc(p_row) failed, errno(%d): %s\n",
+            errno, strerror(errno));
+        result = -9;
+        goto exit;
+    }
+
+    m_gettimems = -1;
+    get_ms_time_run();
+
 	for (y = 0; y < height; y++) {
 		png_read_row(png_ptr, p_row, NULL);
-		transform_rgb_to_draw(p_row,
-				      surface->data + y * surface->row_bytes,
-				      channels, width);
+		transform_rgb_to_draw(p_row, surface->data + y * surface->row_bytes,
+            channels, width);
 	}
 
-	free(p_row);
+	get_ms_time_run();
+
+	if(dofree) {
+	    free(p_row);
+	    p_row = NULL;
+    }
 
 	*pSurface = surface;
 
 exit:
 	close_png(&png_ptr, &info_ptr, fp);
-	if (result < 0 && surface != NULL)
+	if (result < 0 && surface && dofree) {
 		free(surface);
+		*pSurface = NULL;
+	}
+	
+	//get_ms_time_run();
 
 	return result;
 }
@@ -336,7 +398,7 @@ res_create_multi_display_surface(const char *name, const char *dir, int *frames,
 	}
 
 	for (i = 0; i < *frames; i++) {
-		surface[i] = init_display_surface(width, height / *frames);
+		surface[i] = init_display_surface(NULL, width, height / *frames);
 		if (!surface[i]) {
 			result = -8;
 			goto exit;

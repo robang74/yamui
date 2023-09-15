@@ -31,9 +31,9 @@ extern "C" {
 typedef long long int lld;
 
 #ifdef MSTIME_STATIC_VARS
-static __attribute__((unused)) lld m_gettimems = -1;
-static __attribute__((unused)) lld u_gettimems = -1;
-static __attribute__((unused)) lld n_gettimems = -1;
+static __attribute__((used)) lld m_gettimems = -1;
+static __attribute__((used)) lld u_gettimems = -1;
+static __attribute__((used)) lld n_gettimems = -1;
 #else
 extern lld m_gettimems;
 extern lld u_gettimems;

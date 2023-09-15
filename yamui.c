@@ -336,7 +336,7 @@ main(int argc, char *argv[])
 		goto cleanup; //RAF, TODO: it can be return -1 here
 	}
 
-	get_ms_time_run();
+	//get_ms_time_run();
 	
 	gr_color(255, 255, 255, 255);
 
@@ -349,14 +349,18 @@ main(int argc, char *argv[])
 
 	if (animate_ms && image_count > 1) {
 		bool never_stop = !stop_ms;
-		long int time_left = stop_ms;
-		int period = animate_ms / image_count;
+		#define imgcnt (unsigned long)image_count
+		long period = (animate_ms < imgcnt) ? imgcnt : animate_ms;
+		long time_left = (stop_ms < imgcnt) ? imgcnt : stop_ms;
 
+		period = INT_DIV(period, image_count);
+
+		m_gettimems = -1;
 		get_ms_time_run();
 
 		i = 0;
 		while (never_stop || time_left > 0) {	        
-			if(loadLogo(images[i], images_dir))
+			if(loadLogo(images[i], images_dir, false))
 				printf("\"%s\" not found in /res/images/\n", images[i]);
             else
 			    showLogo();
@@ -368,6 +372,8 @@ main(int argc, char *argv[])
 			i = i % image_count;
 		}
 		flip = false;
+// RAF: useless, kernel will do it for us
+//      loadLogo(NULL, NULL, true);
 
 	    get_ms_time_run();
 
@@ -377,7 +383,7 @@ main(int argc, char *argv[])
         if (image_count > 1 && progress_ms)
             printf("Can only show one image with progressbar\n");
 
-        if (image_count && loadLogo(images[0], images_dir))
+        if (image_count && loadLogo(images[0], images_dir, true))
             printf("Image \"%s\" not found in /res/images/\n", images[0]);
 
         if (progress_ms > (1ULL<<31)) {
@@ -394,6 +400,7 @@ main(int argc, char *argv[])
 
         int wtme = progress_ms/100, trst = progress_ms, step = 1;
 
+        m_gettimems = -1;
         get_ms_time_run();
 
         if(wtme < 10) {
@@ -421,15 +428,19 @@ main(int argc, char *argv[])
         goto cleanup;
 	} else
 	if (image_count) {
+	    m_gettimems = -1;
 	    get_ms_time_run();
 
-		if(loadLogo(images[0], images_dir))
+		if(loadLogo(images[0], images_dir, true))
 			printf("Image \"%s\" not found in /res/images/\n", images[0]);
         else
 		    showLogo();
 		flip = false;
+
+		get_ms_time_run();
 	}
 
+	m_gettimems = -1;
 	get_ms_time_run();
 
 	/* In case there is text to add, add it to both sides of the "flip" */
