@@ -461,12 +461,13 @@ cleanup:
 	    close(sigfd);
 	sigfd = -1;
     osUpdateScreenExit();
-    get_ms_time_run();
+    goto out;
 saving:
 #if 0 //RAF, TODO: until restore will work this is useless
     gr_save();
     gr_exit();
 #endif
 out:
+	get_ms_time_run();
 	return ret;
 }
