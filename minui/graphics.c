@@ -217,18 +217,19 @@ gr_text(int kx, int ky, const char *s, int bold, int factor, int row)
 	get_ms_time_run();
 
     static GRSurface *gr_draw_ptr = NULL, *gr_flip_ptr = NULL;
-#if 0
+#if 1
     if(!gr_flip_ptr || !gr_draw_ptr) {
         gr_flip_ptr = gr_flip_n_copy();
         gr_draw_ptr = gr_draw;
     }
-#endif
+#else
     if(!gr_flip_ptr || !gr_draw_ptr) {
         gr_save();
         gr_flip_ptr = gr_flip();
         gr_restore();
         gr_draw_ptr = gr_draw;
     }
+#endif
 
 	get_ms_time_run();
 
@@ -499,9 +500,13 @@ GRSurface *gr_flip(void)
 
 GRSurface *gr_flip_n_copy(void)
 {
-    GRSurface *srf_ptr = gr_flip();
-    memcpy(srf_ptr->data, gr_draw->data, gr_draw->width * gr_draw->height << 2);
-	return srf_ptr;
+    GRSurface *gr_flip_ptr;
+
+    gr_save();
+    gr_flip_ptr = gr_flip();
+    gr_restore();
+
+	return gr_flip_ptr;
 }
 
 /* ------------------------------------------------------------------------ */
