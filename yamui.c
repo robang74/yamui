@@ -206,8 +206,9 @@ main(int argc, char *argv[])
 
 	argv_ptr = argv;
 
-	setlinebuf(stdout);
-	setlinebuf(stderr);
+    char stdout_buffer[4096];
+    setbuffer(stdout, stdout_buffer, sizeof(stdout_buffer));
+    setlinebuf(stderr);
 
 #if 0
 	unsigned char rgba[4];
@@ -479,5 +480,7 @@ saving:
 #endif
 out:
 	get_ms_time_run();
+	fflush(stdout);
+	fflush(stderr);
 	return ret;
 }
