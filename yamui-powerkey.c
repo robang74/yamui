@@ -275,25 +275,22 @@ main(int argc, char *argv[])
 		tv = get_timeout_value();
 		rv = select(max_fd + 1, &rfds, NULL, NULL, tv);
 		if (rv > 0) {
-			for (i = 0; i < num_fds; i++)
+			for (i = 0; i < num_fds; i++) {
 				if (FD_ISSET(fds[i], &rfds)) {
 					ret_t r;
-
 					r = handle_events(fds[i],
 							  handle_event);
 					if (r == ret_continue)
 						continue;
-
 					ret = get_exit_status(r);
 					running = 0;
 					break;
 				}
+			}
 		} else if (rv == 0) { /* Timeout */
 			ret_t r;
-
 			if ((r = handle_timeout()) == ret_continue)
 				continue;
-
 			ret = get_exit_status(r);
 			break;
 		} else { /* Error or signal */
@@ -301,12 +298,13 @@ main(int argc, char *argv[])
 				errorf("Error on select()");
 				ret = EXIT_FAILURE;
 			}
-
 			break;
 		}
 	}
 
 	close_fds(fds, num_fds);
-	debugf("Terminated");
+	printf("Terminated");
+	fflush(stdout);
+	fflush(stderr);
 	return ret;
 }

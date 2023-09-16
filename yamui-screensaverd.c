@@ -148,41 +148,6 @@ turn_display_on(void)
 #endif /* __arm__ */
 #endif
 
-#if USE_READ_FOR_PWKEY_CMD
-    static char cmdstr[1024], *fname = NULL;
-    static int fd = -1, size;
-    while(fd == -1) {
-        fname = getenv("PWKEY_CMD_FILE");
-        if(fname)
-            fd = open(fname, O_RDONLY);
-        if(fd == -1) {
-            if(errno != ENOENT)
-                fprintf(stderr,"ERROR: open(%s) failed, errno(%d): %s\n",
-                    fname, errno, strerror(errno));
-            break;
-        }
-        size = read(fd, cmdstr, 1024);
-        if(!size) {
-            fprintf(stderr,"WARNING: read(%s) returned zero size\n", fname);
-            close(fd);
-            fd = 0;
-        } else
-        if(size == 1024) {
-            fprintf(stderr,"WARNING: read(%s) returned max size\n", fname);
-            close(fd);
-            fd = 0;
-        } else
-        if(size == -1) {
-            fprintf(stderr,"ERROR: read(%s) failed, errno(%d): %s\n",
-                fname, errno, strerror(errno));
-            close(fd);
-            fd = 0;
-        } else
-            close(fd);
-        break;
-    }
-    if(fd > 0) system(cmdstr);
-#else
     //RAF: this way is much simpler but the file should be executable. On the
     //     other side, the excutable flag could be pourposely switched to enable
     //     or disable the execution of the command by the yamui-screensaverd.
@@ -214,15 +179,9 @@ turn_display_on(void)
                 fprintf(stderr,"ERROR: pid(%d) is not valid\n", pid);
         }
     }
-#if 0 /* The system() does not return but popen() does */
-    if(fname && system(fname)) {
-        fprintf(stderr,"ERROR: read(%s) failed, errno(%d): %s\n",
-            fname, errno, strerror(errno));
-    } else
-        printf("Command by system(%s) completed.\n", fname);
-#endif
-#endif /* USE_SYSTEM_FOR_PWKEY_CMD */
 
+	fflush(stdout);
+	fflush(stderr);
 	return ret;
 }
 
@@ -236,6 +195,8 @@ turn_display_off(void)
 
 	printf("Turning display off.\n");
 	display_state = state_off;
+	fflush(stdout);
+
 #if 0
 #ifdef __arm__
 	gr_save(); /* Qualcomm specific. TODO: implement generic solution. */
@@ -355,6 +316,7 @@ main(void)
 	debugf("Started");
 	signal(SIGINT,  signal_handler);
 	signal(SIGTERM, signal_handler);
+	fflush(stdout);
 
 	while (running) { /* Main loop */
 		int i, rv, max_fd = 0;
@@ -418,5 +380,7 @@ main(void)
 #endif
 	close_fds(fds, num_fds);
 	printf("Terminated\n");
+	fflush(stdout);
+	fflush(stderr);
 	return ret;
 }
