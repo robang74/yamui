@@ -190,8 +190,8 @@ add_text(char **text, int count)
 int
 main(int argc, char *argv[])
 {
+	bool blank = false;
 	int c, option_index;
-	bool flip = true, blank = false;
 	unsigned long int animate_ms = 0;
 	unsigned long long int stop_ms = 0;
 	unsigned long long int progress_ms = 0;
@@ -242,7 +242,7 @@ main(int argc, char *argv[])
 			progress_ms = strtoull(optarg, (char **)NULL, 10);
 			break;
 		case 's':
-			printf("got stop at %s ms\n", optarg);
+			printf("got stop in %s ms\n", optarg);
 			stop_ms = strtoull(optarg, (char **)NULL, 10);
 			break;
 		case 't':
@@ -297,14 +297,16 @@ main(int argc, char *argv[])
         if (app_text_xpos || app_text_ypos)
             printf("The x-pos and y-pos will be ingored without text\n");
     }
-
-	get_ms_time_run();
 	 
 	if (image_count || text_count || progress_ms)
 	    blank = true;
 
+	get_ms_time_rst();
+
 	if (osUpdateScreenInit(0))
 		return -1;
+
+    get_ms_time_lbl(__FILE__":init"); //RAF: 0.366s are spent in initialisation
 
     if (!blank) {
 #if 0 //RAF, TODO: until restore will work this is useless
@@ -323,8 +325,6 @@ main(int argc, char *argv[])
         printf("real v-shift is %lld pixels\n", v_shift);
     }
 
-    get_ms_time_run(); //RAF: 0.366s are spent in initialisation
-
 	/* Allow SIGTERM and SIGINT to interrupt pselect() and move to cleanup */
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGINT);
@@ -339,14 +339,13 @@ main(int argc, char *argv[])
 		goto cleanup; //RAF, TODO: it can be return -1 here
 	}
 
-	
 	gr_color(255, 255, 255, 255);
 
 	/* In case there is text to add, add it to both sides of the "flip" */
 	if(text_count && (animate_ms || progress_ms)) {
+	    get_ms_time_rst();
 	    add_text(text, text_count);
-	    get_ms_time_run();
-	    flip = false;
+	    get_ms_time_lbl(__FILE__":text");
 	}
 
 	if (animate_ms && image_count > 1) {
@@ -357,8 +356,7 @@ main(int argc, char *argv[])
 
 		period = INT_DIV(period, image_count);
 
-		m_gettimems = -1;
-		get_ms_time_run();
+		get_ms_time_rst();
 
 		i = 0;
 		while (never_stop || time_left > 0) {	        
@@ -373,9 +371,8 @@ main(int argc, char *argv[])
 			i++;
 			i = i % image_count;
 		}
-		flip = false;
 
-	    get_ms_time_run();
+	    get_ms_time_lbl(__FILE__":anim");
 
 		goto cleanup;
 	} else
@@ -390,7 +387,6 @@ main(int argc, char *argv[])
             printf("Cannot use a progress_ms value bigger than 2^31\n");
             progress_ms = (1ULL<<31);
         }
-        flip = true;
 
         if(progress_ms < 100) {
             osUpdateScreenShowProgress(100);
@@ -400,8 +396,7 @@ main(int argc, char *argv[])
 
         int wtme = progress_ms/100, trst = progress_ms, step = 1;
 
-        m_gettimems = -1;
-        get_ms_time_run();
+        get_ms_time_rst();
 
         if(wtme < 10) {
             wtme = progress_ms/10;
@@ -420,7 +415,7 @@ main(int argc, char *argv[])
         if(trst > 0)
             wait_signalfd(sigfd, trst);
 
-        get_ms_time_run();
+        get_ms_time_lbl(__FILE__":pbar");
 
         printf("progress bar ended with wtme: %d, trst: %d, i: %d\n",
             wtme, trst, i);
@@ -428,42 +423,25 @@ main(int argc, char *argv[])
         goto cleanup;
 	} else
 	if (image_count) {
-	    m_gettimems = -1;
-	    get_ms_time_run();
+	    get_ms_time_rst();
 
 		if(loadLogo(images[0], images_dir))
 			printf("Image \"%s\" not found in /res/images/\n", images[0]);
         else
 		    showLogo();
-		flip = false;
 
-		get_ms_time_run();
+		get_ms_time_lbl(__FILE__":logo");
 	}
-
-	m_gettimems = -1;
-	get_ms_time_run();
 
 	/* In case there is text to add, add it to both sides of the "flip" */
 	if(text_count) {
 	    add_text(text, text_count);
-	    get_ms_time_run();
-	    flip = false;
+	    get_ms_time_lbl(__FILE__":text");
 	}
-#if 0
-	if(flip) {
-	    printf("Restore the screen buffer and sleep 1s...\n");
-	    gr_restore();
-	    usleep(1000 * 1000);
-	    printf("Flip the screen buffer and sleep 1s...\n");
-	    gr_flip();
-	    usleep(1000 * 1000);
-	    gr_flip();
-	    printf("Flip again and wait for a signal...\n");
-	}
-#endif
+
 	wait_signalfd(sigfd, stop_ms);
 
-	get_ms_time_run();
+	get_ms_time_lbl(__FILE__":stop");
 
 cleanup:
     if (!do_cleanup)
@@ -479,7 +457,7 @@ saving:
     gr_exit();
 #endif
 out:
-	get_ms_time_run();
+	get_ms_time_lbl(__FILE__":exit");
 	fflush(stdout);
 	fflush(stderr);
 	return ret;
