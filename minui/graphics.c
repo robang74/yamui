@@ -97,11 +97,11 @@ void gr_font_size(int *x, int *y)
 	((unsigned)sx * (255 - a)) + ((unsigned)bg * a) ) / 255 )
 
 static void
-char_blend(uint8_t *sx, int src_row_bytes, uint8_t *px, uint8_t *bx,
-            int dst_row_bytes, int width, int height, int factor)
+char_blend(uint8_t *sx, uint32_t src_row_bytes, uint8_t *px, uint8_t *bx,
+    uint32_t dst_row_bytes, uint32_t width, uint32_t height, uint32_t factor)
 {
 	uint8_t a;
-	int i, j, l, k, z = 0;
+	uint_fast32_t i, j, l, k, z = 0;
     uint32_t *wbx = (uint32_t *)bx, *wpx = (uint32_t *)px;
 
 /* RAF: in the most generic case the RGBA is not the only format possible.
@@ -300,7 +300,7 @@ gr_clear(void)
 		memset(gr_draw->data, gr_current_r,
 		       gr_draw->height * gr_draw->row_bytes);
 	else {
-		int x, y;
+		int32_t x, y;
 		uint8_t *px = gr_draw->data;
 
 		for (y = 0; y < gr_draw->height; y++) {

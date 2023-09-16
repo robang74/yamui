@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include <linux/fb.h>
 #include <linux/kd.h>
@@ -212,11 +213,9 @@ init_display_surface(png_uint_32 width, png_uint_32 height)
  *
  * 'width' is the number of pixels in the row. */
 static void
-transform_rgb_to_draw(unsigned char *input_row, unsigned char *output_row,
-		      int channels, int width)
+transform_rgb_to_draw(uint8_t *ip, uint8_t *op, int channels, uint32_t width)
 {
-	int x;
-	unsigned char *ip = input_row, *op = output_row;
+	uint_fast32_t x;
 
 	switch (channels) {
 	case 1:
@@ -242,7 +241,7 @@ transform_rgb_to_draw(unsigned char *input_row, unsigned char *output_row,
 		break;
 	case 4:
 		/* copy RGBA to RGBX */
-		memcpy(output_row, input_row, width * 4);
+		memcpy(op, ip, width << 2);
 		break;
 	}
 }
@@ -253,7 +252,6 @@ int
 res_create_display_surface(const char *name, const char *dir, gr_surface *pSurface)
 {
 	int result = 0;
-	unsigned int y;
 	unsigned char *p_row;
 	gr_surface surface = NULL;
 	png_structp png_ptr = NULL;
@@ -289,10 +287,9 @@ res_create_display_surface(const char *name, const char *dir, gr_surface *pSurfa
 	m_gettimems = -1;
 	get_ms_time_run();
 
-	for (y = 0; y < height; y++) {
+	for (uint_fast32_t y = 0; y < height; y++) {
 		png_read_row(png_ptr, p_row, NULL);
-		transform_rgb_to_draw(p_row,
-				      surface->data + y * surface->row_bytes,
+		transform_rgb_to_draw(p_row, surface->data + y * surface->row_bytes,
             channels, width);
 	}
 
@@ -319,9 +316,8 @@ int
 res_create_multi_display_surface(const char *name, const char *dir, int *frames,
 				 gr_surface **pSurface)
 {
-	int i, result = 0, num_text;
-	unsigned int y;
 	unsigned char *p_row;
+	int i, result = 0, num_text;
 	gr_surface *surface = NULL;
 	png_structp png_ptr = NULL;
 	png_infop info_ptr = NULL;
@@ -371,8 +367,8 @@ res_create_multi_display_surface(const char *name, const char *dir, int *frames,
 	}
 
 	/* TODO: Check for error */
-	p_row = malloc(width * 4);
-	for (y = 0; y < height; y++) {
+	p_row = malloc(width << 2);
+	for (uint_fast32_t y = 0; y < height; y++) {
 		int frame = y % *frames;
 		unsigned char *out_row;
 
@@ -407,7 +403,6 @@ int
 res_create_alpha_surface(const char *name, const char *dir, gr_surface *pSurface)
 {
 	int result = 0;
-	unsigned int y;
 	unsigned char *p_row;
 	gr_surface surface = NULL;
 	png_structp png_ptr = NULL;
@@ -438,7 +433,7 @@ res_create_alpha_surface(const char *name, const char *dir, gr_surface *pSurface
 	surface->row_bytes = width;
 	surface->pixel_bytes = 1;
 
-	for (y = 0; y < height; y++) {
+	for (uint_fast32_t y = 0; y < height; y++) {
 		p_row = surface->data + y * surface->row_bytes;
 		png_read_row(png_ptr, p_row, NULL);
 	}
@@ -481,8 +476,8 @@ matches_locale(const char *loc, const char *locale)
 /* ------------------------------------------------------------------------ */
 
 int
-res_create_localized_alpha_surface(const char *name, const char *dir, const char *locale,
-				   gr_surface *pSurface)
+res_create_localized_alpha_surface(const char *name, const char *dir,
+                            const char *locale, gr_surface *pSurface)
 {
 	int result = 0;
 	unsigned char *row;
