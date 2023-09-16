@@ -40,23 +40,14 @@ extern lld u_gettimems;
 extern lld n_gettimems;
 #endif
 
-lld get_time_ms(lld tms, unsigned line, const char *file);
-lld get_time_us(lld tus, unsigned line, const char *file);
-lld get_time_ns(lld tns, unsigned line, const char *file);
+lld _get_time_any(const lld t0, const char *file, const unsigned line,
+    const char *const fmt, const char *const fmtb, const lld unit);
 
-#ifdef MSTIME_TIME_ONLY
-#define get_ms_time_run() ({ m_gettimems = get_time_ms(m_gettimems, 0, 0); })
-#define get_us_time_run() ({ u_gettimems = get_time_us(u_gettimems, 0, 0); })
-#define get_ns_time_run() ({ n_gettimems = get_time_ns(n_gettimems, 0, 0); })
-#else
-#define get_ms_time_run() ({ lld _a = m_gettimems; m_gettimems = get_time_ms(_a, __LINE__, __FILE__); })
-#define get_us_time_run() ({ lld _a = u_gettimems; u_gettimems = get_time_us(_a, __LINE__, __FILE__); })
-#define get_ns_time_run() ({ lld _a = n_gettimems; n_gettimems = get_time_ns(_a, __LINE__, __FILE__); })
-#endif
-
-#define get_ms_time_now() ({ m_gettimems = get_time_ms(0, 0, NULL); })
-#define get_us_time_now() ({ u_gettimems = get_time_us(0, 0, NULL); })
-#define get_ns_time_now() ({ n_gettimems = get_time_ns(0, 0, NULL); })
+/*
+lld get_time_ms(const lld t0, const char *file, const unsigned line);
+lld get_time_us(const lld t0, const char *file, const unsigned line);
+lld get_time_ns(const lld t0, const char *file, const unsigned line);
+*/
 
 #define MIL 1000
 #define MLN 1000000
@@ -73,6 +64,36 @@ lld get_time_ns(lld tns, unsigned line, const char *file);
 #define MLN_RMN(a) INT_RMN(a, MLN)
 #define MLD_RMN(a) INT_RMN(a, MLD)
 
+#define MIL_FMT "%lld.%03lld\n"
+#define MLN_FMT "%lld.%06lld\n"
+#define MLD_FMT "%lld.%09lld\n"
+
+#define get_time_ms(a, b, c) _get_time_any(a, b, c, "%s+" MIL_FMT, MIL_FMT, MIL)
+#define get_time_us(a, b, c) _get_time_any(a, b, c, "%s+" MLN_FMT, MLN_FMT, MLN)
+#define get_time_ns(a, b, c) _get_time_any(a, b, c, "%s+" MLD_FMT, MLD_FMT, MLD)
+
+#ifdef MSTIME_TIME_ONLY
+#define get_ms_time_run() ({ m_gettimems = get_time_ms(m_gettimems, 0, 0); })
+#define get_us_time_run() ({ u_gettimems = get_time_us(u_gettimems, 0, 0); })
+#define get_ns_time_run() ({ n_gettimems = get_time_ns(n_gettimems, 0, 0); })
+#else
+#define get_ms_time_run() ({ m_gettimems = get_time_ms(m_gettimems, __FILE__, __LINE__); })
+#define get_us_time_run() ({ u_gettimems = get_time_us(u_gettimems, __FILE__, __LINE__); })
+#define get_ns_time_run() ({ n_gettimems = get_time_ns(n_gettimems, __FILE__, __LINE__); })
+#endif
+
+#define get_ms_time_lbl(lbl) ({ m_gettimems = get_time_ms(m_gettimems, lbl, 0); })
+#define get_us_time_lbl(lbl) ({ u_gettimems = get_time_us(u_gettimems, lbl, 0); })
+#define get_ns_time_lbl(lbl) ({ n_gettimems = get_time_ns(n_gettimems, lbl, 0); })
+
+#define get_ms_time_now() ({ m_gettimems = get_time_ms(0, NULL, 0); })
+#define get_us_time_now() ({ u_gettimems = get_time_us(0, NULL, 0); })
+#define get_ns_time_now() ({ n_gettimems = get_time_ns(0, NULL, 0); })
+
+#define get_ms_time_rst() ({ m_gettimems = -1; get_ms_time_run(); })
+#define get_us_time_rst() ({ u_gettimems = -1; get_us_time_run(); })
+#define get_ns_time_rst() ({ n_gettimems = -1; get_ns_time_run(); })
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
@@ -80,101 +101,129 @@ lld get_time_ns(lld tns, unsigned line, const char *file);
 
 #ifndef MSTIME_HEADER_ONLY
 
+#define BUFSIZE 128
+
 lld m_gettimems = -1;
 lld u_gettimems = -1;
 lld n_gettimems = -1;
 
-#define debug 0
-#define BUFSIZE 128
-
-lld get_time_ms(lld tms, unsigned line, const char *file)
+lld _get_time_any(const lld t0, const char *file, const unsigned line,
+    const char *const fmta, const char *const fmtb, const lld unit)
 {
-    long ms;
-    time_t s, sms;
+    lld s, rms, ctm;
     struct timespec spec;
 
     clock_gettime(CLOCK_REALTIME, &spec);
     s   = spec.tv_sec;
-    ms  = MLN_DIV(spec.tv_nsec);
-    sms = (MIL * s) + ms;
-    
-    if(debug)
-        printf("debug> tms:%lld sms:%ld\n", tms, sms);
+    rms = INT_DIV(spec.tv_nsec, MLD/unit);
+    ctm = (unit * s) + rms;
 
-    if(debug || tms > 0) {
+    if(t0 > 0) {
         char str[BUFSIZE]; str[0] = 0;
         if(line) {
             snprintf(str, BUFSIZE, "=-> %s%s%03d: ",
                 file ? file : "", file ? ":" : "", line);
-            str[BUFSIZE-1] = 0;
-        }
-        if(tms > 0) {
-            tms = sms - tms;
-            printf("%s+%llu.%03llu\n", str, MIL_DIV(tms), MIL_RMN(tms));
         } else
-        if(debug) {
-            printf("%s=%ld.%03ld\n", str, s, ms);
+        if(file) {
+            snprintf(str, BUFSIZE, "=-> %s: ", file);
         }
+        lld tdf = ctm - t0;
+        str[BUFSIZE-1] = 0;
+        printf(fmta, str, INT_DIV(tdf, unit), INT_RMN(tdf, unit));
     } else
-    if(!tms)
-        printf("%ld.%03ld\n", s, ms);
+    if(!t0)
+        printf(fmtb, s, rms);
 
-    return sms;
+    return ctm;
 }
-
-lld get_time_us(lld tus, unsigned line, const char *file)
+/*
+lld get_time_ms(const lld t0, const char *file, const unsigned line)
 {
-    long us;
-    time_t s, sus;
+    lld s, rms, tdf;
     struct timespec spec;
 
     clock_gettime(CLOCK_REALTIME, &spec);
     s   = spec.tv_sec;
-    us  = MIL_DIV(spec.tv_nsec);
-    sus = (MLN * s) + us;
+    rms  = MLN_DIV(spec.tv_nsec);
+    tdf = (MIL * s) + rms;
 
-    if(tus > 0) {
+    if(t0 > 0) {
         char str[BUFSIZE]; str[0] = 0;
         if(line) {
-            snprintf(str, BUFSIZE, "=-> %s%s%03d: ",
+            snprintf(str, BUFSIZE, "=-> %s%s%04d: ",
                 file ? file : "", file ? ":" : "", line);
-            str[BUFSIZE-1] = 0;
+        } else
+        if(file) {
+            snprintf(str, BUFSIZE, "=-> %s: ", file);
         }
-        tus = sus - tus;
-        printf("%s+%llu.%06llu\n", str, MLN_DIV(tus), MLN_RMN(tus));
+        tdf -= t0;
+        str[BUFSIZE-1] = 0;
+        printf("%s+%lld.%03lld\n", str, MIL_DIV(tdf), MIL_RMN(tdf));
     } else
-    if(!tus)
-        printf("%ld.%06ld\n", s, us);
+    if(!t0)
+        printf("%lld.%03lld\n", s, rms);
 
-    return sus;
+    return tdf;
 }
 
-lld get_time_ns(lld tns, unsigned line, const char *file)
+lld get_time_us(const lld t0, const char *file, const unsigned line)
 {
-    long ns;
-    time_t s, sns;
+    lld s, rms, tdf;
     struct timespec spec;
 
     clock_gettime(CLOCK_REALTIME, &spec);
     s   = spec.tv_sec;
-    ns  = spec.tv_nsec;
-    sns = (MLD * s) + ns;
+    rms  = MIL_DIV(spec.tv_nsec);
+    tdf = (MLN * s) + rms;
 
-    if(tns > 0) {
+    if(t0 > 0) {
         char str[BUFSIZE]; str[0] = 0;
         if(line) {
-            snprintf(str, BUFSIZE, "=-> %s%s%03d: ",
+            snprintf(str, BUFSIZE, "=-> %s%s%04d: ",
                 file ? file : "", file ? ":" : "", line);
             str[BUFSIZE-1] = 0;
+        } else
+        if(file) {
+            snprintf(str, BUFSIZE, "=-> %s: ", file);
         }
-        tns = sns - tns;
-        printf("%s+%llu.%09llu\n", str, MLD_DIV(tns), MLD_RMN(tns));
-    } else {
-        if(!tns) printf("%ld.%09ld\n", s, ns);
-        s = (MLD * s) + ns;
-    }
+        tdf -= t0;
+        str[BUFSIZE-1] = 0;
+        printf("%s+%lld.%06lld\n", str, MLN_DIV(tdf), MLN_RMN(tdf));
+    } else
+    if(!t0)
+        printf("%lld.%06lld\n", s, rms);
 
-    return sns;
+    return tdf;
 }
 
+lld get_time_ns(const lld t0, const char *file, const unsigned line)
+{
+    lld s, rms, tdf;
+    struct timespec spec;
+
+    clock_gettime(CLOCK_REALTIME, &spec);
+    s   = spec.tv_sec;
+    rms  = spec.tv_nsec;
+    tdf = (MLD * s) + rms;
+
+    if(t0 > 0) {
+        char str[BUFSIZE]; str[0] = 0;
+        if(line) {
+            snprintf(str, BUFSIZE, "=-> %s%s%04d: ",
+                file ? file : "", file ? ":" : "", line);
+            str[BUFSIZE-1] = 0;
+        } else
+        if(file) {
+            snprintf(str, BUFSIZE, "=-> %s: ", file);
+        }
+        tdf -= t0;
+        str[BUFSIZE-1] = 0;
+        printf("%s+%lld.%09lld\n", str, MLD_DIV(tdf), MLD_RMN(tdf));
+    } else
+    if(!t0)
+        printf("%lld.%09lld\n", s, rms);
+
+    return tdf;
+}
+*/
 #endif /* MSTIME_HEADER_ONLY */
