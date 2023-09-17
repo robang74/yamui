@@ -128,20 +128,14 @@ sysfs_write_int(const char *fname, int val)
 
 /* ------------------------------------------------------------------------ */
 
-#define USE_READ_FOR_PWKEY_CMD 0
-
 static int
 turn_display_on(void)
 {
-	int ret;
+    int ret = sysfs_write_int(display_control, display_control_on_value);
+    const char *const act = (display_state != state_on) ? "Turning" : "Refresh";
+    printf("%s display on.\n", act);
+    display_state = state_on;
 
-	if (display_state != state_on) {
-		printf("Turning display on.\n");
-	    display_state = state_on;
-	} else {
-	    printf("Refresh display on.\n");
-    }
-	ret = sysfs_write_int(display_control, display_control_on_value);
 #if 0
 #ifdef __arm___
 	gr_restore(); /* Qualcomm specific. TODO: implement generic solution. */
@@ -153,33 +147,30 @@ turn_display_on(void)
     //     or disable the execution of the command by the yamui-screensaverd.
     static char *fname = NULL;
     if(!fname) fname = getenv("PWKEY_CMD_FILE");
+    if(!fname) goto func_return;
 
-    if(fname) {
-        FILE *pf = popen(fname, "r");
-        if(!pf) {
-            fprintf(stderr,"ERROR: popen(%s) failed, errno(%d): %s\n",
-                fname, errno, strerror(errno));
-        } else {
-            char str[16];
-            if(fgets(str, sizeof(str), pf)) {
-                for(int i = sizeof(str)-1; i >= 0; i--)
-                    if(str[i] == '\n') str[i] = 0;
-                printf("fgets(%s) on fileno(%d) returned: %s\n",
-                    fname, fileno(pf), str);
-            } else
-                fprintf(stderr,"ERROR: fgets(%s) failed, errno(%d): %s\n",
-                    fname, errno, strerror(errno));
-            pclose(pf);
-            int pid = atoi(str);
-            if(pid > 0) {
-                if(waitpid(pid, NULL, WNOHANG | WUNTRACED | WCONTINUED) == -1)
-                    fprintf(stderr,"ERROR: waitpid(%d) failed, errno(%d): %s\n",
-                        pid, errno, strerror(errno));
-            } else
-                fprintf(stderr,"ERROR: pid(%d) is not valid\n", pid);
-        }
+    char str[16];
+    FILE *pf = popen(fname, "r");
+    if(!pf) {
+        fprintf(stderr,"ERROR: popen(%s) failed, errno(%d): %s\n",
+            fname, errno, strerror(errno));
+        goto func_return;
     }
+    if(fgets(str, sizeof(str), pf)) {
+        for(int i = sizeof(str)-1; i >= 0; i--)
+            if(str[i] == '\n') str[i] = 0;
+        printf("popen(%s) on fileno(%d) read proc pid: %s\n",
+            fname, fileno(pf), str);
+        int pid = atoi(str);
+        if(pid < 2)
+            fprintf(stderr,"ERROR: pid(%d, %s) is not valid\n", pid, str);
+    } else {
+        fprintf(stderr,"ERROR: fgets(%s) failed, errno(%d): %s\n",
+            fname, errno, strerror(errno));
+    }
+    pclose(pf);
 
+func_return:
 	fflush(stdout);
 	fflush(stderr);
 	return ret;
