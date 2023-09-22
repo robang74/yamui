@@ -21,13 +21,15 @@ BuildRequires:  pkgconfig(libdrm)
 %build
 make -j$(nproc)
 
-%install
+%install 
 
 %make_install
 
 %files
 %defattr(-,root,root,-)
 %{_bindir}/mstime
+%{_bindir}/ustime
+%{_bindir}/nstime
 %{_bindir}/%{name}
 %{_bindir}/%{name}-powerkey
 %{_bindir}/%{name}-screensaverd

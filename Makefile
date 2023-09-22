@@ -23,14 +23,19 @@ TARGETS_BIN += yamui-screensaverd
 TARGETS_BIN += yamui-powerkey
 TARGETS_BIN += mstime
 
+TARGETS_LNK += ustime
+TARGETS_LNK += nstime
+
 DESTDIR ?= test-install-root # rpm-build overrides this
 
 all:: $(TARGETS_BIN)
-	strip $(TARGETS_BIN) ||:
-	du -b $(TARGETS_BIN) ||:
+	strip $(TARGETS_BIN)
+	ln -sf mstime ustime
+	ln -sf mstime nstime
+	du -b $(TARGETS_BIN)
 
 install:: all
-	install -m 755 -t $(DESTDIR)/usr/bin -D $(TARGETS_BIN)
+	install -m 755 -t $(DESTDIR)/usr/bin -D $(TARGETS_BIN) $(TARGETS_LNK)
 
 distclean:: clean
 
