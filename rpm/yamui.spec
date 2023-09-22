@@ -17,7 +17,7 @@ BuildRequires:  pkgconfig(libdrm)
 %setup -q -n %{name}-%{version}
 
 %build
-make
+make -j$(nproc)
 
 %install
 
