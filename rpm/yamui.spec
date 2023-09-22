@@ -13,6 +13,8 @@ BuildRequires:  pkgconfig(libdrm)
 %description
 %{summary}.
 
+%global debug_package %{nil}
+
 %prep
 %setup -q -n %{name}-%{version}
 
